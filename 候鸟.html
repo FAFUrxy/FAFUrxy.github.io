@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>极地信使·北极燕鸥 | 故事地图</title>
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Quicksand', sans-serif; background: #eaf4e8; overflow-x: hidden; }
+        .screens-container {
+            scroll-snap-type: y mandatory;
+            overflow-y: scroll;
+            height: 100vh;
+            width: 100%;
+            scroll-behavior: smooth;
+        }
+        .screen {
+            scroll-snap-align: start;
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 1.5rem;
+            position: relative;
+        }
+        .intro-bg {
+            background: linear-gradient(rgba(20,30,25,0.4), rgba(15,25,20,0.5)), url('https://plus.unsplash.com/premium_photo-1661963290250-bdad9f867bd6?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');
+            background-size: cover;
+            background-position: center 30%;
+        }
+        .card {
+            max-width: 850px;
+            width: 90%;
+            background: rgba(255, 248, 235, 0.88) !important;
+            border-radius: 48px;
+            padding: 1.8rem 2rem;
+            text-align: center;
+            color: #2c3e2f !important;
+            border: 1px solid rgba(200, 160, 100, 0.5);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .card h1, .card h2, .card h3, .card p, .card div:not(.btn):not(.route-3d-btn) {
+            color: #1e2a1e !important;
+        }
+        /* 统一按钮样式 (探索/跟随/重温/保护等) */
+        .btn {
+            background: #4c9f70;
+            border: none;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 40px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1.2rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .btn:hover { 
+            background: #3b855b; 
+            transform: scale(1.02);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+        #earth3d-container {
+            width: 100%;
+            height: 52vh;
+            min-height: 380px;
+            border-radius: 28px;
+            overflow: hidden;
+            margin: 12px 0;
+            background: #03061a;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .routes-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin: 12px 0;
+            max-height: 100px;
+            overflow-y: auto;
+            padding: 4px;
+        }
+        .route-3d-btn {
+            background: #e0e9db;
+            border: none;
+            border-radius: 40px;
+            padding: 5px 14px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            cursor: pointer;
+            color: #2c3e2f;
+            transition: 0.2s;
+        }
+        .route-3d-btn.active { background: #ffb347; color: white; }
+        .story-horizontal {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .map-area {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            background: #1a2e2a;
+        }
+        #nora-map {
+            flex: 1;
+            width: 100%;
+            min-height: 0;
+        }
+        .timeline-bar {
+            background: #fef9ef;
+            padding: 0.7rem 1rem;
+            border-top: 2px solid #ffb347;
+        }
+        .timeline-wrapper {
+            background: #eef3e8;
+            border-radius: 28px;
+            padding: 0.5rem 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .timeline-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        input[type=range] {
+            width: 100%;
+            height: 4px;
+            -webkit-appearance: none;
+            background: #8bbf8c;
+            border-radius: 4px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            width: 16px;
+            height: 16px;
+            background: #ffb347;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .stations-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.55rem;
+            margin-top: 6px;
+            font-weight: 600;
+        }
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        .nav-btn-sm {
+            background: #cde2d0;
+            border: none;
+            padding: 5px 16px;
+            border-radius: 30px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+        .right-detail {
+            width: 340px;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            overflow-y: auto;
+            border-left: 3px solid #ffb347;
+        }
+        .right-detail::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,250,225,0.94);
+            backdrop-filter: blur(3px);
+            z-index: 0;
+        }
+        .detail-content {
+            position: relative;
+            z-index: 2;
+            padding: 1.2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .station-card {
+            background: rgba(255,252,235,0.98);
+            border-radius: 28px;
+            padding: 1rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .station-card h3 {
+            font-size: 1.2rem;
+            margin-bottom: 0.4rem;
+        }
+        .station-img {
+            width: 100%;
+            border-radius: 20px;
+            margin: 12px 0;
+            max-height: 160px;
+            object-fit: cover;
+        }
+        .mileage-badge {
+            background: #fff3df;
+            border-radius: 40px;
+            padding: 6px 12px;
+            font-weight: 700;
+            display: inline-block;
+        }
+        .scroll-hint {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            animation: bounce 2s infinite;
+            color: #fff;
+        }
+        @keyframes bounce {
+            0%,100%{ transform: translateX(-50%) translateY(0);}
+            50%{ transform: translateX(-50%) translateY(6px);}
+        }
+        .custom-popup .leaflet-popup-content-wrapper {
+            background: #fffcf0;
+            border-radius: 20px;
+            border-left: 5px solid #ffb347;
+        }
+        .ending-video iframe {
+            width: 100%;
+            border-radius: 24px;
+            aspect-ratio: 16 / 9;
+        }
+        .card .routes-buttons .route-3d-btn {
+            color: #2c3e2f;
+        }
+        .card .routes-buttons .route-3d-btn.active {
+            color: white;
+        }
+        /* 确保右侧按钮右下角且符合统一 btn 样式，额外增加右对齐辅助 */
+        .right-detail .detail-content .btn-align-right {
+            align-self: flex-end;
+            margin-top: 1rem;
+            margin-bottom: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+<div class="screens-container" id="screensContainer">
+    <!-- 屏1：候鸟话题 -->
+    <section class="screen intro-bg" id="introScreen">
+        <div class="card">
+            <i class="fas fa-feather-alt" style="font-size: 2.8rem; color: #ffb347;"></i>
+            <h1>天空的承诺</h1>
+            <p>“初闻征雁已无蝉，百尺楼高水接天。” —— 李商隐</p>
+            <p>鸟类迁徙，是大自然最壮丽的生命律动。全球1万多种鸟类中，约1/5为候鸟。<br>每年有数十亿只候鸟在春天到来的时候会返回到北极进行繁殖，仿佛是一种回家的承诺。</p>
+            <button class="btn" id="toRoutesBtn">🌍 探索候鸟路线 <i class="fas fa-arrow-right"></i></button>
+        </div>
+        <div class="scroll-hint"><i class="fas fa-chevron-down"></i> 滑动进入下一章</div>
+    </section>
+
+    <!-- 屏2：3D地球九大路线，背景第二个unsplash -->
+    <section class="screen" id="routesScreen" style="background: #eef3e8 url('https://images.unsplash.com/photo-1580567995519-59501fbe8ab7?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D') no-repeat center/cover; justify-content: flex-start; padding-top: 1.5rem;">
+        <div class="card" style="max-width: 1100px; width: 95%; padding: 1rem 1.2rem;">
+            <h2><i class="fas fa-globe-americas"></i> 天空中的高速公路</h2>
+            <p>科学家将全球候鸟迁徙通道划分为九条主要“高速公路”。</p>  <p>它们看不见、摸不着，却真实存在于大气、洋流与磁场之间。</p> 
+            <div id="earth3d-container"></div>
+            <!-- ✅ 小标语：解释 3D 地球交互 -->
+<div style="
+    font-size: 0.72rem;
+    color: #e8e4d8;
+    text-align: center;
+    margin-bottom: 6px;
+">
+    点击路线，查看其在地球上的真实轨迹
+</div>
+            <div class="routes-buttons" id="routes3dButtons"></div>
+            <p style="margin-top: 8px;">最长的一条 —— <strong style="color:#d97706;">东大西洋迁飞通道</strong>，正是北极燕鸥的征途：从斯瓦尔巴群岛出发，沿非洲西岸南下，跨越赤道，最终抵达南极海域。</p>
+            <button class="btn" id="toProtagonistBtn" style="margin-top: 0.6rem;">🐦 跟随主角 · 燕鸥<i class="fas fa-arrow-right"></i></button>
+        </div>
+    </section>
+
+    <!-- 屏3：过渡介绍诺拉，背景第三个unsplash -->
+    <section class="screen" id="introNoraScreen" style="background: linear-gradient(rgba(30,55,45,0.5), rgba(20,45,35,0.6)), url('https://images.unsplash.com/photo-1774249681230-73cc01177905?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'); background-size: cover; background-position: center;">
+        <div class="card">
+            <i class="fas fa-crown" style="font-size: 2.2rem; color: #ffb347;"></i>
+            <h2>我们的主角 · 北极燕鸥“FAU”</h2>
+            <p>体长仅35厘米，体重不过120克，却是地球上迁徙距离最长的动物。<br>每年从北极飞往南极，追随永昼，往返8万公里,它的一生，是在极昼与极昼之间的永恒飞行。</p>
+            <button class="btn" id="startStoryBtn"><i class="fas fa-map-marked-alt"></i> 开启迁徙地图<i class="fas fa-arrow-right"></i></i></button>
+        </div>
+    </section>
+
+    <!-- 屏4：故事地图 - 左地图右面板（此屏无.card，完全不受影响） -->
+    <section class="screen" id="storyScreen" style="padding: 0;">
+        <div class="story-horizontal">
+            <div class="map-area">
+                <div id="nora-map"></div>
+                <!-- ✅ 小标语：引导地图交互 -->
+<div style="
+    font-size: 0.72rem;
+    color: #6b7a6b;
+    text-align: center;
+    margin-bottom: 6px;
+">
+    拖动地图或滑动时间轴，跟随 FAU 的旅程
+</div>
+                <div class="timeline-bar">
+                    <div class="timeline-wrapper">
+                        <div class="timeline-label"><span><i class="fas fa-map-pin"></i> 迁徙站序</span><span id="stationNameDisplay">北极摇篮</span></div>
+                        <input type="range" id="timelineSlider" min="0" max="10" step="1" value="0">
+                        <div class="stations-row" id="stationsRowShort"></div>
+                    </div>
+                    <div class="nav-buttons">
+                        <button class="nav-btn-sm" id="prevStationBtn"><i class="fas fa-arrow-left"></i> 上一站</button>
+                        <button class="nav-btn-sm" id="nextStationBtn">下一站 <i class="fas fa-arrow-right"></i></button>
+                    </div>
+                </div>
+            </div>
+            <div class="right-detail" id="rightDetailPanel">
+                <div class="detail-content" id="detailContent">
+                    <!-- 动态内容 -->
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 屏5：结尾视频 + 保护，背景第四个unsplash -->
+    <section class="screen" id="endingScreen" style="background: linear-gradient(rgba(25,45,35,0.7), rgba(20,40,30,0.7)), url('https://images.unsplash.com/photo-1628627260827-0c26497c07f1?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'); background-size: cover;">
+        <div class="card" style="max-width: 800px;">
+            <h2><i class="fas fa-heart"></i> 永无止境的循环</h2>
+            <div class="ending-video">
+                <iframe src="https://player.bilibili.com/player.html?bvid=BV1bR4y1x7e3&autoplay=0" frameborder="0" allowfullscreen></iframe>
+            </div>
+            <p style="margin-top: 15px;">FAU的故事，也是数百万北极燕鸥的故事。<br>它们每年往返8万公里，一生飞行距离相当于地球到月球往返三次。<br>保护湿地、减少光污染、守护候鸟驿站，让这场伟大的迁徙永续。</p>
+            <button class="btn" id="restartBtn"><i class="fas fa-redo-alt"></i> 重温旅程<i class="fas fa-arrow-right"></i></i></button>
+        </div>
+    </section>
+</div>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // ========== 多屏滚动 ==========
+    const introScreen = document.getElementById('introScreen');
+    const routesScreen = document.getElementById('routesScreen');
+    const introNoraScreen = document.getElementById('introNoraScreen');
+    const storyScreen = document.getElementById('storyScreen');
+    const endingScreen = document.getElementById('endingScreen');
+    function scrollToScreen(el) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    document.getElementById('toRoutesBtn').onclick = () => scrollToScreen(routesScreen);
+    document.getElementById('toProtagonistBtn').onclick = () => scrollToScreen(introNoraScreen);
+    document.getElementById('startStoryBtn').onclick = () => { scrollToScreen(storyScreen); setTimeout(() => { if(window.mapInstance) window.flyToStation(0); }, 400); };
+    document.getElementById('restartBtn').onclick = () => scrollToScreen(introScreen);
+    
+    // ========== 3D地球 (高亮单条路线，其他隐藏) ==========
+    const container = document.getElementById('earth3d-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x08142c);
+    scene.fog = new THREE.FogExp2(0x08142c, 0.0005);
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(0, 0, 3.2);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(renderer.domElement);
+    
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.6;
+    controls.enableZoom = true;
+    
+    const textureLoader = new THREE.TextureLoader();
+    const earthMap = textureLoader.load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg');
+    const earthSpecularMap = textureLoader.load('https://threejs.org/examples/textures/planets/earth_specular_2048.jpg');
+    const cloudMap = textureLoader.load('https://threejs.org/examples/textures/planets/earth_clouds_1024.png');
+    
+    const earthGeo = new THREE.SphereGeometry(1, 128, 128);
+    const earthMat = new THREE.MeshPhongMaterial({ map: earthMap, specularMap: earthSpecularMap, shininess: 8 });
+    const earth = new THREE.Mesh(earthGeo, earthMat);
+    scene.add(earth);
+    
+    const cloudGeo = new THREE.SphereGeometry(1.008, 128, 128);
+    const cloudMat = new THREE.MeshPhongMaterial({ map: cloudMap, transparent: true, opacity: 0.12 });
+    const clouds = new THREE.Mesh(cloudGeo, cloudMat);
+    scene.add(clouds);
+    
+    const starGeo = new THREE.BufferGeometry();
+    const starCount = 2000;
+    const starPos = [];
+    for (let i = 0; i < starCount; i++) {
+        starPos.push((Math.random() - 0.5) * 2000);
+        starPos.push((Math.random() - 0.5) * 1000);
+        starPos.push((Math.random() - 0.5) * 500 - 100);
+    }
+    starGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(starPos), 3));
+    const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.2 });
+    const stars = new THREE.Points(starGeo, starMat);
+    scene.add(stars);
+    
+    const ambientLight = new THREE.AmbientLight(0x505080);
+    scene.add(ambientLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    dirLight.position.set(5, 5, 5);
+    scene.add(dirLight);
+    const fillLight = new THREE.PointLight(0x88aaff, 0.6);
+    fillLight.position.set(-2, 1, 3);
+    scene.add(fillLight);
+    const backLight = new THREE.PointLight(0xffaa66, 0.5);
+    backLight.position.set(1, 2, -3);
+    scene.add(backLight);
+    
+    // ========== 修正后的九大迁徙路线坐标（真实地理）==========
+    const routes3d = {
+        "东亚-澳大利西亚路线": [
+            [70.0, 170.0], [62.0, 165.0], [52.0, 155.0], [42.0, 145.0], [32.0, 135.0],
+            [22.0, 120.0], [12.0, 115.0], [0.0, 120.0], [-10.0, 130.0], [-20.0, 140.0],
+            [-30.0, 152.0], [-34.0, 168.0], [-38.0, 175.0], [-42.0, 170.0]
+        ],
+        "中亚-印度路线": [
+            [62.0, 82.0], [54.0, 78.0], [46.0, 76.0], [38.0, 74.0], [30.0, 72.0],
+            [26.0, 78.0], [20.0, 82.0], [12.0, 80.0], [6.0, 78.0], [0.0, 80.0]
+        ],
+        "西亚-东非路线": [
+            [52.0, 52.0], [44.0, 48.0], [36.0, 50.0], [28.0, 48.0], [20.0, 46.0],
+            [12.0, 48.0], [6.0, 50.0], [0.0, 45.0], [-6.0, 40.0], [-12.0, 38.0],
+            [-18.0, 40.0], [-24.0, 42.0], [-30.0, 30.0]
+        ],
+        "西太平洋路线": [
+            [60.0, 170.0], [50.0, 175.0], [38.0, 180.0], [25.0, -170.0], [12.0, -165.0],
+            [0.0, -170.0], [-12.0, -175.0], [-22.0, 178.0], [-32.0, 172.0], [-42.0, 165.0]
+        ],
+        "美洲-太平洋路线": [
+            [61.5, -150.0], [55.0, -135.0], [48.0, -125.0], [42.0, -124.0], [32.0, -117.0],
+            [23.0, -110.0], [15.0, -100.0], [8.0, -85.0], [0.0, -80.0], [-8.0, -78.0],
+            [-18.0, -72.0], [-28.0, -71.0], [-36.0, -73.0], [-45.0, -74.0], [-54.0, -70.0]
+        ],
+        "密西西比美洲路线": [
+            [68.0, -110.0], [58.0, -105.0], [48.0, -100.0], [40.0, -96.0], [32.0, -92.0],
+            [28.0, -88.0], [22.0, -85.0], [16.0, -86.0], [10.0, -80.0], [2.0, -75.0],
+            [-8.0, -68.0], [-18.0, -64.0], [-28.0, -64.0], [-38.0, -68.0], [-48.0, -72.0]
+        ],
+        "美洲-大西洋路线": [
+            [66.0, -65.0], [56.0, -62.0], [46.0, -64.0], [40.0, -70.0], [32.0, -78.0],
+            [25.0, -80.0], [18.0, -76.0], [10.0, -65.0], [2.0, -52.0], [-6.0, -42.0],
+            [-14.0, -38.0], [-22.0, -42.0], [-32.0, -48.0], [-38.0, -54.0], [-44.0, -60.0]
+        ],
+        "黑海-地中海路线": [
+            [58.0, 18.0], [52.0, 22.0], [46.0, 28.0], [42.0, 32.0], [38.0, 28.0],
+            [36.0, 22.0], [32.0, 16.0], [28.0, 10.0], [22.0, 5.0], [16.0, 2.0],
+            [10.0, 0.0], [4.0, 2.0], [-2.0, 6.0], [-10.0, 12.0], [-16.0, 15.0],
+            [-22.0, 14.0], [-28.0, 16.0]
+        ],
+        "东大西洋迁飞通道": [
+            [78.2, 16.0], [72.0, -5.0], [64.1, -21.9], [56.0, -18.0], [48.0, -12.0],
+            [40.0, -14.0], [32.0, -16.0], [24.0, -18.0], [16.0, -20.0], [8.0, -22.0],
+            [0.0, -25.0], [-8.0, -24.0], [-16.0, -22.0], [-24.0, -18.0], [-32.0, -12.0],
+            [-40.0, -5.0], [-48.0, 2.0], [-56.0, -8.0], [-64.0, -20.0], [-72.0, -22.0]
+        ]
+    };
+    const routeColors = ["#FF6B6B", "#4ECDC4", "#FFE66D", "#FF9F1C", "#C084FC", "#2E8B57", "#E63946", "#1E90FF", "#F4A261"];
+    
+    function latLngToVector3(lat, lng, radius=1.02) {
+        const phi = (90 - lat) * Math.PI / 180;
+        const theta = lng * Math.PI / 180;
+        const x = radius * Math.sin(phi) * Math.cos(theta);
+        const y = radius * Math.cos(phi);
+        const z = radius * Math.sin(phi) * Math.sin(theta);
+        return new THREE.Vector3(x, y, z);
+    }
+    
+    function createSmoothLine(routeCoords, color) {
+        if (!routeCoords.length) return null;
+        const adjusted = [];
+        for (let i = 0; i < routeCoords.length; i++) {
+            let [lat, lng] = routeCoords[i];
+            if (i === 0) { adjusted.push([lat, lng]); continue; }
+            let prevLng = adjusted[i-1][1];
+            let delta = lng - prevLng;
+            if (delta > 180) delta -= 360;
+            if (delta < -180) delta += 360;
+            adjusted.push([lat, prevLng + delta]);
+        }
+        const interpolated = [];
+        for (let i = 0; i < adjusted.length - 1; i++) {
+            const p1 = adjusted[i], p2 = adjusted[i+1];
+            const steps = 35;
+            for (let s = 0; s <= steps; s++) {
+                const t = s / steps;
+                const lat = p1[0] * (1 - t) + p2[0] * t;
+                let lng = p1[1] * (1 - t) + p2[1] * t;
+                if (lng > 180) lng -= 360;
+                if (lng < -180) lng += 360;
+                interpolated.push([lat, lng]);
+            }
+        }
+        const points = interpolated.map(([lat,lng]) => latLngToVector3(lat,lng,1.02));
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const material = new THREE.LineBasicMaterial({ color: color });
+        return new THREE.Line(geometry, material);
+    }
+    
+    let allLines = [];
+    Object.keys(routes3d).forEach((name, idx) => {
+        const line = createSmoothLine(routes3d[name], routeColors[idx]);
+        if(line) {
+            scene.add(line);
+            allLines.push(line);
+        }
+    });
+    allLines.forEach(line => { line.visible = false; });
+    
+    function showOnlyRoute(routeName) {
+        allLines.forEach(line => line.visible = false);
+        const idx = Object.keys(routes3d).indexOf(routeName);
+        if (idx !== -1 && allLines[idx]) {
+            allLines[idx].visible = true;
+            const coords = routes3d[routeName];
+            if (coords && coords.length) {
+                const centerIdx = Math.floor(coords.length / 2);
+                const centerCoord = coords[centerIdx];
+                const targetPos = latLngToVector3(centerCoord[0], centerCoord[1], 2.2);
+                controls.target.copy(targetPos);
+                const startPos = camera.position.clone();
+                const endPos = targetPos.clone().multiplyScalar(1.7);
+                endPos.z = endPos.z + 0.6;
+                const duration = 500;
+                const startTime = performance.now();
+                function animateCamera(now) {
+                    const t = Math.min(1, (now - startTime) / duration);
+                    camera.position.lerpVectors(startPos, endPos, t);
+                    controls.target.lerpVectors(controls.target, targetPos, t);
+                    if (t < 1) requestAnimationFrame(animateCamera);
+                }
+                requestAnimationFrame(animateCamera);
+            }
+        }
+    }
+    
+    const btnContainer = document.getElementById('routes3dButtons');
+    Object.keys(routes3d).forEach(name => {
+        const btn = document.createElement('button');
+        btn.textContent = name;
+        btn.classList.add('route-3d-btn');
+        btn.onclick = () => {
+            showOnlyRoute(name);
+            document.querySelectorAll('.route-3d-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            controls.autoRotate = false;
+            setTimeout(() => controls.autoRotate = false, 400);
+        };
+        btnContainer.appendChild(btn);
+    });
+    setTimeout(() => showOnlyRoute("东大西洋迁飞通道"), 600);
+    
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        clouds.rotation.y += 0.0005;
+        renderer.render(scene, camera);
+    }
+    animate();
+    window.addEventListener('resize', () => {
+        const w = container.clientWidth, h = container.clientHeight;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+    });
+    
+    // ========== 故事地图 (左侧地图 + 右侧丰富面板) ==========
+const map = L.map('nora-map').setView([78.2, 16.0], 5);
+
+// 卫星影像底图
+const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri'
+});
+
+// 街道底图（已替换为 Esri 街道图，国内可正常访问）
+const streetLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri'
+});
+
+const baseMaps = {
+    "卫星影像": satelliteLayer,
+    "街道地图": streetLayer
+};
+
+satelliteLayer.addTo(map);  // 默认显示卫星图
+L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
+L.control.scale().addTo(map);
+    
+    const stations = [
+        { name: "❄️ 斯瓦尔巴群岛", lat: 78.2, lng: 16.0, time: "6月-7月", desc: "FAFU在这里出生，极昼下快速成长。", fact: "全球约50%的北极燕鸥在此繁殖", icon: "fa-egg", zoom: 7, mileage: 0, bg: "url('https://plus.unsplash.com/premium_photo-1661891865327-3183020c93b1?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')", img: "https://plus.unsplash.com/premium_photo-1661891865327-3183020c93b1?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", longDesc: "斯瓦尔巴群岛位于北极圈内，夏季24小时白昼，苔原上密集的燕鸥巢穴，每对夫妇守护2-3枚卵，父母轮流孵卵、捕猎，雏鸟必须在短短三周内学会飞行，否则将无法跟上南迁的大部队。" },
+        { name: "🌊 冰岛海域", lat: 64.1, lng: -21.9, time: "8月上旬", desc: "冰岛周边寒暖流交汇，提供了北迁后第一次大规模进食机会。", fact: "单次迁徙前增重可达 40%", icon: "fa-fish", zoom: 6, mileage: 1200, bg: "url('https://plus.unsplash.com/premium_photo-1673002094359-6e2de18bf37b?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')", img: "https://plus.unsplash.com/premium_photo-1673002094359-6e2de18bf37b?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", longDesc: "冰岛周边寒暖流交汇，带来大量鲱鱼和磷虾，是燕鸥重要的能量补给站。" },
+        { name: "🍃 爱尔兰西南海域", lat: 51.5, lng: -12.0, time: "8月中旬", desc: "利用上升流区短暂停歇，恢复体力。", fact: "日行300公里", icon: "fa-water", zoom: 6, mileage: 2200, bg: "url('https://plus.unsplash.com/premium_photo-1734415314046-d9f5956d5604?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')", img: "https://plus.unsplash.com/premium_photo-1734415314046-d9f5956d5604?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", longDesc: "爱尔兰海丰富的饵料，燕鸥常在这里盘旋捕食，补充长途飞行消耗。" },
+        { name: "🌞 比斯开湾", lat: 45.5, lng: -5.0, time: "8月底", desc: "穿越比斯开湾，直面北大西洋风暴。", fact: "集群飞行以抵御天敌与风暴", icon: "fa-cloud-sun", zoom: 6, mileage: 3300, bg: "url('https://plus.unsplash.com/premium_photo-1664286884907-e9167045d0bb?q=80&w=1137&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')", img: "https://plus.unsplash.com/premium_photo-1664286884907-e9167045d0bb?q=80&w=1137&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", longDesc: "比斯开湾以狂风巨浪闻名。燕鸥无法长时间在海面休息，只能迎着侧风持续飞行。群体飞行不仅能节省体力，也能降低被猛禽袭击的风险。" },
+        { name: "🌴 西非沿岸(塞内加尔)", lat: 14.5, lng: -17.5, time: "9月-10月", desc: "赤道前最后的丰盛补给站。", fact: "停留5-8天", icon: "fa-palm-tree", zoom: 6, mileage: 5200, bg: "url('https://plus.unsplash.com/premium_photo-1661871178548-e35aece53d53?q=80&w=1169&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')", img: "https://plus.unsplash.com/premium_photo-1661871178548-e35aece53d53?q=80&w=1169&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", longDesc: "塞内加尔沿海的上升流带来密集鱼群，是燕鸥跨越赤道的“最后一顿正餐”。此后，它们将面对赤道无风带的高温与食物匮乏。" },
+        { name: "🔥 几内亚湾赤道区", lat: 0.0, lng: -8.0, time: "10月", desc: "穿越赤道无风带，高温与饥饿的双重考验。", fact: "连续飞行1200公里", icon: "fa-temperature-high", zoom: 5.5, mileage: 8200, bg: "url('https://images.unsplash.com/photo-1559233642-4108fd12db5e?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8dHJvcGljYWwlMjBvY2VhbiUyMGJpcmRzfGVufDB8fDB8fHww')", img: "https://images.unsplash.com/photo-1559233642-4108fd12db5e?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8dHJvcGljYWwlMjBvY2VhbiUyMGJpcmRzfGVufDB8fDB8fHww", longDesc: "赤道附近缺乏稳定上升气流，燕鸥必须依靠持续振翅前进。这里几乎没有食物，它们依靠此前积累的脂肪，一口气飞行上千公里。" },
+        { name: "🌊 纳米比亚-南非海域", lat: -28.0, lng: 15.0, time: "11月初", desc: "本格拉寒流带来海洋盛宴。", fact: "常与海豚、鲸鱼协同捕食", icon: "fa-dolphin", zoom: 6, mileage: 11200, bg: "url('https://images.unsplash.com/photo-1648107482708-2d9d61af12c0?q=80&w=1173&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')", img: "https://images.unsplash.com/photo-1648107482708-2d9d61af12c0?q=80&w=1173&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", longDesc: "本格拉寒流将深海营养带到表层，引发沙丁鱼风暴。燕鸥、海豚、鲸鱼甚至海鸟会同时出现，共同围猎这片富饶海域。" },
+        { name: "⛰️ 南非好望角", lat: -34.5, lng: 18.0, time: "11月中旬", desc: "绕过非洲最南端，进入南大洋。", fact: "利用西风带长距离滑翔", icon: "fa-mountain", zoom: 6, mileage: 14200, bg: "url('https://plus.unsplash.com/premium_photo-1669750791963-ec6f3a565fb9?q=80&w=688&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')", img: "https://plus.unsplash.com/premium_photo-1669750791963-ec6f3a565fb9?q=80&w=688&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", longDesc: "好望角是大西洋与印度洋的交汇点，常年西风肆虐。燕鸥不再依赖频繁振翅，而是借助强劲西风滑翔，这是它们最省力的一段航程。" },
+        { name: "❄️ 斯科舍海", lat: -55.0, lng: -35.0, time: "12月上旬", desc: "逼近南极圈，浮冰开始浮现。", fact: "羽毛防水，适应极寒环境", icon: "fa-icicles", zoom: 6, mileage: 17200, bg: "url('https://plus.unsplash.com/premium_photo-1664012343376-fa9647b9d897?q=80&w=1074&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')", img: "https://plus.unsplash.com/premium_photo-1664012343376-fa9647b9d897?q=80&w=1074&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", longDesc: "斯科舍海布满冰山与碎冰，气温骤降。北极燕鸥的羽毛致密且防水，即使在接近零度的海水中短时间停留，也不会失去体温。" },
+        { name: "🧊 威德尔海(南极越冬)", lat: -72.0, lng: -22.0, time: "12月-2月", desc: "抵达终点，在南极的极昼中度过南半球夏天。", fact: "越冬地集群超百万只", icon: "fa-snowflake", zoom: 7, mileage: 19200, bg: "url('https://plus.unsplash.com/premium_photo-1664303875699-8e95cd12601a?q=80&w=1169&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')", img: "https://plus.unsplash.com/premium_photo-1664303875699-8e95cd12601a?q=80&w=1169&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", longDesc: "威德尔海冰缘聚集大量磷虾，燕鸥与企鹅、海豹共享南极的短暂夏天。" },
+        { name: "🔄 完整迁徙回环", lat: 0, lng: -30, time: "全年", desc: "从北极到南极，再回到原点。", fact: "一生飞行距离可绕地球三圈", icon: "fa-infinity", zoom: 2.5, mileage: 80000, bg: "url('https://plus.unsplash.com/premium_photo-1666382677674-0e3ea67dc196?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')", img: "https://plus.unsplash.com/premium_photo-1666382677674-0e3ea67dc196?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", longDesc: "从斯瓦尔巴到威德尔海，再原路返回，年复一年，永不停歇。这是地球上最伟大的迁徙。" }
+    ];
+    
+    const fullPoints = [
+        [78.2,16.0],[76.0,8.0],[70.0,-5.0],[64.1,-21.9],[58.0,-15.0],[51.5,-12.0],[47.0,-8.0],[45.5,-5.0],[40.0,-10.0],[30.0,-15.0],[20.0,-18.0],[14.5,-17.5],[7.0,-12.0],[0.0,-8.0],[-7.0,-5.0],[-15.0,0.0],[-22.0,7.0],[-28.0,15.0],[-34.5,18.0],[-42.0,0.0],[-50.0,-15.0],[-55.0,-35.0],[-64.0,-40.0],[-72.0,-22.0]
+    ];
+    function getRouteSegment(idx) {
+        if (idx === 10) return fullPoints;
+        const step = Math.floor((idx+1) * fullPoints.length / 10);
+        return fullPoints.slice(0, Math.max(2, step));
+    }
+    
+    let markersGroup = L.layerGroup().addTo(map);
+    stations.forEach((s, i) => {
+        const popHtml = `<div><strong>${s.name}</strong><br/>📅 ${s.time}<p>${s.desc}</p><div>🔬 ${s.fact}</div></div>`;
+        const iconHtml = `<i class="fas ${s.icon}" style="color:#d97706; font-size:22px;"></i>`;
+        L.marker([s.lat, s.lng], { icon: L.divIcon({ html: iconHtml, iconSize: [24,24] }) }).bindPopup(popHtml, { className: 'custom-popup' }).addTo(markersGroup);
+    });
+    
+    let currentPolyline = null;
+    function updateRoute(idx) {
+        if(currentPolyline) map.removeLayer(currentPolyline);
+        const coords = getRouteSegment(idx);
+        if(coords.length) currentPolyline = L.polyline(coords, { color: '#ff9f4a', weight: 4, opacity: 0.9, dashArray: '6,8' }).addTo(map);
+    }
+    
+    // 更新右侧面板，并采用统一样式按钮 + 右下角布局
+    function updateRightPanel(idx) {
+        const s = stations[idx];
+        const detailHtml = `
+            <div class="station-card">
+                <h3><i class="fas ${s.icon}"></i> ${s.name}</h3>
+                <div style="font-size:0.8rem; color:#a5673f;">📅 ${s.time}</div>
+                <img class="station-img" src="${s.img}" alt="${s.name}" loading="lazy">
+                <p style="margin: 10px 0 6px;"><strong>📖 详细故事</strong><br>${s.longDesc}</p>
+                <div style="background:#eef3ea; border-radius: 20px; padding: 8px; margin: 8px 0;">
+                    <i class="fas fa-flask"></i> 小知识：${s.fact}
+                </div>
+                <div class="mileage-badge"><i class="fas fa-route"></i> 累计飞行 ${s.mileage.toLocaleString()} km</div>
+            </div>
+            <!-- 修改后：使用统一 btn 样式，并置于右下角（align-self + margin） -->
+            <button class="btn" id="endingFromPanelBtn" style="align-self: flex-end; margin-top: 1rem; margin-bottom: 0.25rem;"><i class="fas fa-film"></i> 尾声·保护<i class="fas fa-arrow-right"></i></button>
+        `;
+        document.getElementById('detailContent').innerHTML = detailHtml;
+        document.getElementById('stationNameDisplay').innerHTML = s.name;
+        document.getElementById('timelineSlider').value = idx;
+        const rightPanel = document.getElementById('rightDetailPanel');
+        if(s.bg) rightPanel.style.backgroundImage = `${s.bg}, linear-gradient(rgba(255,250,225,0.92), rgba(255,250,225,0.92))`;
+        else rightPanel.style.backgroundImage = "url('https://images.unsplash.com/photo-1559233642-4108fd12db5e?w=600&auto=format&fit=crop'), linear-gradient(rgba(255,250,225,0.92), rgba(255,250,225,0.92))";
+        rightPanel.style.backgroundSize = "cover";
+        rightPanel.style.backgroundBlend = "overlay";
+        const panelEndBtn = document.getElementById('endingFromPanelBtn');
+        if(panelEndBtn) panelEndBtn.onclick = () => scrollToScreen(endingScreen);
+    }
+    
+    let currentStation = 0;
+    window.flyToStation = function(idx) {
+        if(idx<0 || idx>=stations.length) return;
+        currentStation = idx;
+        const s = stations[idx];
+        map.flyTo([s.lat, s.lng], s.zoom, { duration: 1.2 });
+        updateRoute(idx);
+        updateRightPanel(idx);
+        setTimeout(() => {
+            markersGroup.eachLayer(layer => {
+                if(Math.abs(layer.getLatLng().lat - s.lat) < 1.2) layer.openPopup();
+            });
+        }, 500);
+    };
+    
+    const slider = document.getElementById('timelineSlider');
+    slider.addEventListener('input', (e) => window.flyToStation(parseInt(e.target.value)));
+    document.getElementById('prevStationBtn').onclick = () => { if(currentStation>0) window.flyToStation(currentStation-1); };
+    document.getElementById('nextStationBtn').onclick = () => { if(currentStation<stations.length-1) window.flyToStation(currentStation+1); };
+    const shortRow = document.getElementById('stationsRowShort');
+    stations.forEach((_, i) => { let span = document.createElement('span'); span.innerText = i+1; shortRow.appendChild(span); });
+    
+    window.mapInstance = map;
+    window.flyToStation(0);
+    window.addEventListener('resize', () => map.invalidateSize());
+</script>
+</body>
+</html>
