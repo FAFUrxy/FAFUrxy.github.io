@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>极地信使·北极燕鸥 | 故事地图</title>
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- html2canvas 用于截图 -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <!-- Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Quicksand', sans-serif; background: #eaf4e8; overflow-x: hidden; }
+        .screens-container {
+            scroll-snap-type: y mandatory;
+            overflow-y: scroll;
+            height: 100vh;
+            width: 100%;
+            scroll-behavior: smooth;
+        }
+        .screen {
+            scroll-snap-align: start;
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 1.5rem;
+            position: relative;
+        }
+        .intro-bg {
+            background: linear-gradient(rgba(20,30,25,0.4), rgba(15,25,20,0.5)), url('https://plus.unsplash.com/premium_photo-1661963290250-bdad9f867bd6?q=80&w=1170&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center 30%;
+        }
+        .card {
+            max-width: 850px;
+            width: 90%;
+            background: rgba(255, 248, 235, 0.88) !important;
+            border-radius: 48px;
+            padding: 1.8rem 2rem;
+            text-align: center;
+            color: #2c3e2f !important;
+            border: 1px solid rgba(200, 160, 100, 0.5);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .btn {
+            background: #4c9f70;
+            border: none;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 40px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1.2rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .btn:hover { background: #3b855b; transform: scale(1.02); }
+        .btn-sm {
+            background: #e0e9db;
+            color: #2c3e2f;
+            padding: 5px 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-sm:hover { background: #ffb347; color: white; }
+        #earth3d-container {
+            width: 100%;
+            height: 52vh;
+            min-height: 380px;
+            border-radius: 28px;
+            overflow: hidden;
+            margin: 12px 0;
+            background: #03061a;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .routes-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin: 12px 0;
+            max-height: 100px;
+            overflow-y: auto;
+            padding: 4px;
+        }
+        .route-3d-btn {
+            background: #e0e9db;
+            border: none;
+            border-radius: 40px;
+            padding: 5px 14px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .route-3d-btn.active { background: #ffb347; color: white; }
+        .story-horizontal {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .map-area {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            background: #1a2e2a;
+            position: relative;
+        }
+        #nora-map {
+            flex: 1;
+            width: 100%;
+            min-height: 0;
+        }
+        /* 交互卡片 */
+        .equator-card {
+            position: absolute;
+            top: 80px;
+            left: 90px;
+            z-index: 1000;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(16px);
+            border-radius: 32px;
+            padding: 16px 20px;
+            width: 280px;
+            border: 2px solid #ffb347;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.4);
+            pointer-events: auto;
+            text-align: center;
+            transition: 0.2s;
+        }
+        .equator-card .title {
+            font-weight: 700;
+            color: #ffb347;
+            font-size: 1rem;
+            margin-bottom: 12px;
+        }
+        .equator-card .choice-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin: 16px 0;
+        }
+        .equator-card .btn-sm {
+            font-size: 0.85rem;
+            padding: 8px 16px;
+        }
+        .equator-card .result {
+            font-size: 0.85rem;
+            color: #f0f0f0;
+            background: rgba(255,255,255,0.15);
+            padding: 10px 12px;
+            border-radius: 24px;
+            border-left: 4px solid #ffb347;
+            margin-top: 8px;
+        }
+        .timeline-bar {
+            background: #fef9ef;
+            padding: 0.7rem 1rem;
+            border-top: 2px solid #ffb347;
+        }
+        .timeline-wrapper {
+            background: #eef3e8;
+            border-radius: 28px;
+            padding: 0.5rem 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .timeline-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        input[type=range] {
+            width: 100%;
+            height: 4px;
+            -webkit-appearance: none;
+            background: #8bbf8c;
+            border-radius: 4px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            width: 16px;
+            height: 16px;
+            background: #ffb347;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .stations-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.55rem;
+            margin-top: 6px;
+            font-weight: 600;
+        }
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        .nav-btn-sm {
+            background: #cde2d0;
+            border: none;
+            padding: 5px 16px;
+            border-radius: 30px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+        .right-detail {
+            width: 340px;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            overflow-y: auto;
+            border-left: 3px solid #ffb347;
+        }
+        .right-detail::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,250,225,0.94);
+            backdrop-filter: blur(3px);
+            z-index: 0;
+        }
+        .detail-content {
+            position: relative;
+            z-index: 2;
+            padding: 1.2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .station-card {
+            background: rgba(255,252,235,0.98);
+            border-radius: 28px;
+            padding: 1rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .station-card h3 {
+            font-size: 1.2rem;
+            margin-bottom: 0.4rem;
+        }
+        .station-img {
+            width: 100%;
+            border-radius: 20px;
+            margin: 12px 0;
+            max-height: 160px;
+            object-fit: cover;
+        }
+        .dashboard {
+            background: rgba(20, 25, 35, 0.85);
+            backdrop-filter: blur(8px);
+            border-radius: 28px;
+            padding: 12px 12px 16px;
+            margin: 12px 0;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,180,70,0.4);
+        }
+        .gauge-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .gauge {
+            flex: 1;
+            text-align: center;
+        }
+        .gauge canvas {
+            width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
+        .gauge-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #ffd966;
+            margin-top: 6px;
+        }
+        .wind-card {
+            background: rgba(0,0,0,0.4);
+            border-radius: 40px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 6px;
+            border: 1px solid rgba(255,180,70,0.5);
+        }
+        .wind-card span {
+            font-weight: 700;
+            color: #f0f0f0;
+            font-size: 0.8rem;
+        }
+        .distance-value {
+            font-size: 0.7rem;
+            color: #ccc;
+            text-align: center;
+            margin-top: 6px;
+        }
+        .scroll-hint {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            animation: bounce 2s infinite;
+            color: #fff;
+        }
+        @keyframes bounce {
+            0%,100%{ transform: translateX(-50%) translateY(0);}
+            50%{ transform: translateX(-50%) translateY(6px);}
+        }
+        .custom-popup .leaflet-popup-content-wrapper {
+            background: #fffcf0;
+            border-radius: 20px;
+            border-left: 5px solid #ffb347;
+        }
+        .ending-video iframe {
+            width: 100%;
+            border-radius: 24px;
+            aspect-ratio: 16 / 9;
+        }
+        .tern-marker {
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+            transition: transform 0.2s;
+        }
+
+        /* 南极动画样式 */
+        .aurora-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at 30% 40%, rgba(0, 255, 166, 0.2), rgba(0, 80, 120, 0.4));
+            pointer-events: none;
+            z-index: 1999;
+            animation: fadeOut 3.5s forwards;
+        }
+        @keyframes fadeOut {
+            0% { opacity: 0; }
+            20% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        .snowflake {
+            position: absolute;
+            color: white;
+            font-size: 12px;
+            opacity: 0.8;
+            animation: fall 3s linear forwards;
+            pointer-events: none;
+            z-index: 2000;
+        }
+        @keyframes fall {
+            0% { top: -10%; opacity: 0.8; transform: rotate(0deg); }
+            100% { top: 110%; opacity: 0; transform: rotate(360deg); }
+        }
+        .mountain-rise {
+            position: absolute;
+            bottom: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 80px;
+            text-shadow: 0 0 15px #c8e7ff;
+            pointer-events: none;
+            z-index: 2000;
+            animation: riseAndGlow 3s ease-out forwards;
+        }
+        @keyframes riseAndGlow {
+            0% { opacity: 0; transform: translateX(-50%) translateY(80px); filter: blur(4px); }
+            25% { opacity: 1; transform: translateX(-50%) translateY(0); filter: blur(0); }
+            75% { opacity: 1; transform: translateX(-50%) translateY(-20px); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-100px); filter: blur(6px); }
+        }
+        .arrival-text {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+            padding: 12px 24px;
+            border-radius: 60px;
+            color: #ffdd99;
+            font-weight: bold;
+            font-size: 1.4rem;
+            white-space: nowrap;
+            border: 1px solid #ffb347;
+            box-shadow: 0 0 20px rgba(255,180,70,0.3);
+            pointer-events: none;
+            z-index: 2000;
+            animation: textFade 3s forwards;
+        }
+        @keyframes textFade {
+            0% { opacity: 0; transform: translateX(-50%) scale(0.8); }
+            20% { opacity: 1; transform: translateX(-50%) scale(1); }
+            70% { opacity: 1; transform: translateX(-50%) scale(1); }
+            100% { opacity: 0; transform: translateX(-50%) scale(1.2); }
+        }
+
+        /* 测距 & 截图控件共用样式（方形图标） */
+        .custom-control {
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            margin-top: 8px;
+            text-align: center;
+        }
+        .custom-control button {
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 30px;
+            height: 30px;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            margin: 0;
+        }
+        .custom-control button.active {
+            background: #ffb347;
+            color: white;
+            border-color: #ffb347;
+        }
+        .distance-tip {
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            white-space: nowrap;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+<div class="screens-container" id="screensContainer">
+    <!-- 屏1 -->
+    <section class="screen intro-bg" id="introScreen">
+        <div class="card">
+            <i class="fas fa-feather-alt" style="font-size: 2.8rem; color: #ffb347;"></i>
+            <h1>天空的承诺</h1>
+            <p>“初闻征雁已无蝉，百尺楼高水接天。” —— 李商隐</p>
+            <p>鸟类迁徙，是大自然最壮丽的生命律动。全球1万多种鸟类中，约1/5为候鸟。<br>每年有数十亿只候鸟在春天到来的时候会返回到北极进行繁殖，仿佛是一种回家的承诺。</p>
+            <button class="btn" id="toRoutesBtn">🌍 探索候鸟路线 <i class="fas fa-arrow-right"></i></button>
+        </div>
+        <div class="scroll-hint"><i class="fas fa-chevron-down"></i> 滑动进入下一章</div>
+    </section>
+
+    <!-- 屏2：3D地球九大路线 -->
+    <section class="screen" id="routesScreen" style="background: #eef3e8 url('https://images.unsplash.com/photo-1580567995519-59501fbe8ab7?q=80&w=1170&auto=format&fit=crop'); background-size: cover; justify-content: flex-start; padding-top: 1.5rem;">
+        <div class="card" style="max-width: 1100px; width: 95%; padding: 1rem 1.2rem;">
+            <h2><i class="fas fa-globe-americas"></i> 天空中的高速公路</h2>
+            <p>科学家将全球候鸟迁徙通道划分为九条主要“高速公路”。</p>
+            <p>它们看不见、摸不着，却真实存在于大气、洋流与磁场之间。</p>
+            <div id="earth3d-container"></div>
+            <div style="font-size: 0.72rem; color: #e8e4d8; text-align: center; margin-bottom: 6px;">点击路线，查看其在地球上的真实轨迹</div>
+            <div class="routes-buttons" id="routes3dButtons"></div>
+            <p style="margin-top: 8px;">最长的一条 —— <strong style="color:#d97706;">东大西洋迁飞通道</strong>，正是北极燕鸥的征途：从斯瓦尔巴群岛出发，沿非洲西岸南下，跨越赤道，最终抵达南极海域。</p>
+            <button class="btn" id="toProtagonistBtn" style="margin-top: 0.6rem;">🐦 跟随主角 · 燕鸥<i class="fas fa-arrow-right"></i></button>
+        </div>
+    </section>
+
+    <!-- 屏3：过渡 -->
+    <section class="screen" id="introNoraScreen" style="background: linear-gradient(rgba(30,55,45,0.5), rgba(20,45,35,0.6)), url('https://images.unsplash.com/photo-1774249681230-73cc01177905?q=80&w=1170&auto=format&fit=crop'); background-size: cover; background-position: center;">
+        <div class="card">
+            <i class="fas fa-crown" style="font-size: 2.2rem; color: #ffb347;"></i>
+            <h2>我们的主角 · 北极燕鸥“FAU”</h2>
+            <p>体长仅35厘米，体重不过120克，却是地球上迁徙距离最长的动物。<br>每年从北极飞往南极，追随永昼，往返8万公里,它的一生，是在极昼与极昼之间的永恒飞行。</p>
+            <button class="btn" id="startStoryBtn"><i class="fas fa-map-marked-alt"></i> 开启迁徙地图<i class="fas fa-arrow-right"></i></button>
+        </div>
+    </section>
+
+    <!-- 屏4：故事地图 -->
+    <section class="screen" id="storyScreen" style="padding: 0;">
+        <div class="story-horizontal">
+            <div class="map-area">
+                <div id="nora-map"></div>
+                <div id="equatorInteractContainer"></div>
+                <div style="font-size: 0.72rem; color: #6b7a6b; text-align: center; margin: 4px 0;">拖动地图或滑动时间轴，跟随 FAU 的旅程</div>
+                <div class="timeline-bar">
+                    <div class="timeline-wrapper">
+                        <div class="timeline-label"><span><i class="fas fa-map-pin"></i> 迁徙站序</span><span id="stationNameDisplay">北极摇篮</span></div>
+                        <input type="range" id="timelineSlider" min="0" max="10" step="1" value="0">
+                        <div class="stations-row" id="stationsRowShort"></div>
+                    </div>
+                    <div class="nav-buttons">
+                        <button class="nav-btn-sm" id="prevStationBtn"><i class="fas fa-arrow-left"></i> 上一站</button>
+                        <button class="nav-btn-sm" id="nextStationBtn">下一站 <i class="fas fa-arrow-right"></i></button>
+                    </div>
+                </div>
+            </div>
+            <div class="right-detail" id="rightDetailPanel">
+                <div class="detail-content" id="detailContent"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 屏5：结尾 -->
+    <section class="screen" id="endingScreen" style="background: linear-gradient(rgba(25,45,35,0.7), rgba(20,40,30,0.7)), url('https://images.unsplash.com/photo-1628627260827-0c26497c07f1?q=80&w=1170&auto=format&fit=crop'); background-size: cover;">
+        <div class="card" style="max-width: 800px;">
+            <h2><i class="fas fa-heart"></i> 永无止境的循环</h2>
+            <div class="ending-video">
+                <iframe src="https://player.bilibili.com/player.html?bvid=BV1bR4y1x7e3&autoplay=0" frameborder="0" allowfullscreen></iframe>
+            </div>
+            <p style="margin-top: 15px;" id="endingMessage">FAU的故事，也是数百万北极燕鸥的故事。<br>它们每年往返8万公里，一生飞行距离相当于地球到月球往返三次。<br>保护湿地、减少光污染、守护候鸟驿站，让这场伟大的迁徙永续。</p>
+            <button class="btn" id="restartBtn"><i class="fas fa-redo-alt"></i> 重温旅程</button>
+        </div>
+    </section>
+</div>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // ========== 多屏滚动 ==========
+    const introScreen = document.getElementById('introScreen');
+    const routesScreen = document.getElementById('routesScreen');
+    const introNoraScreen = document.getElementById('introNoraScreen');
+    const storyScreen = document.getElementById('storyScreen');
+    const endingScreen = document.getElementById('endingScreen');
+    function scrollToScreen(el) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    document.getElementById('toRoutesBtn').onclick = () => scrollToScreen(routesScreen);
+    document.getElementById('toProtagonistBtn').onclick = () => scrollToScreen(introNoraScreen);
+    document.getElementById('startStoryBtn').onclick = () => { scrollToScreen(storyScreen); setTimeout(() => { if(window.mapInstance) window.flyToStation(0); }, 400); };
+    document.getElementById('restartBtn').onclick = () => scrollToScreen(introScreen);
+    
+    // ========== 3D地球 ==========
+    const container = document.getElementById('earth3d-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x08142c);
+    scene.fog = new THREE.FogExp2(0x08142c, 0.0005);
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(0, 0, 3.2);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(renderer.domElement);
+    
+    const controls3d = new OrbitControls(camera, renderer.domElement);
+    controls3d.enableDamping = true;
+    controls3d.autoRotate = true;
+    controls3d.autoRotateSpeed = 0.6;
+    controls3d.enableZoom = true;
+    
+    const textureLoader = new THREE.TextureLoader();
+    const earthMap = textureLoader.load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg');
+    const earthSpecularMap = textureLoader.load('https://threejs.org/examples/textures/planets/earth_specular_2048.jpg');
+    const cloudMap = textureLoader.load('https://threejs.org/examples/textures/planets/earth_clouds_1024.png');
+    
+    const earthGeo = new THREE.SphereGeometry(1, 128, 128);
+    const earthMat = new THREE.MeshPhongMaterial({ map: earthMap, specularMap: earthSpecularMap, shininess: 8 });
+    const earth = new THREE.Mesh(earthGeo, earthMat);
+    scene.add(earth);
+    
+    const cloudGeo = new THREE.SphereGeometry(1.008, 128, 128);
+    const cloudMat = new THREE.MeshPhongMaterial({ map: cloudMap, transparent: true, opacity: 0.12 });
+    const clouds = new THREE.Mesh(cloudGeo, cloudMat);
+    scene.add(clouds);
+    
+    const starGeo = new THREE.BufferGeometry();
+    const starCount = 2000;
+    const starPos = [];
+    for (let i = 0; i < starCount; i++) {
+        starPos.push((Math.random() - 0.5) * 2000);
+        starPos.push((Math.random() - 0.5) * 1000);
+        starPos.push((Math.random() - 0.5) * 500 - 100);
+    }
+    starGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(starPos), 3));
+    const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.2 });
+    const stars = new THREE.Points(starGeo, starMat);
+    scene.add(stars);
+    
+    const ambientLight = new THREE.AmbientLight(0x505080);
+    scene.add(ambientLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    dirLight.position.set(5, 5, 5);
+    scene.add(dirLight);
+    const fillLight = new THREE.PointLight(0x88aaff, 0.6);
+    fillLight.position.set(-2, 1, 3);
+    scene.add(fillLight);
+    const backLight = new THREE.PointLight(0xffaa66, 0.5);
+    backLight.position.set(1, 2, -3);
+    scene.add(backLight);
+    
+    const routes3d = {
+        "东亚-澳大利西亚路线": [[70.0, 170.0], [62.0, 165.0], [52.0, 155.0], [42.0, 145.0], [32.0, 135.0], [22.0, 120.0], [12.0, 115.0], [0.0, 120.0], [-10.0, 130.0], [-20.0, 140.0], [-30.0, 152.0], [-34.0, 168.0], [-38.0, 175.0], [-42.0, 170.0]],
+        "中亚-印度路线": [[62.0, 82.0], [54.0, 78.0], [46.0, 76.0], [38.0, 74.0], [30.0, 72.0], [26.0, 78.0], [20.0, 82.0], [12.0, 80.0], [6.0, 78.0], [0.0, 80.0]],
+        "西亚-东非路线": [[52.0, 52.0], [44.0, 48.0], [36.0, 50.0], [28.0, 48.0], [20.0, 46.0], [12.0, 48.0], [6.0, 50.0], [0.0, 45.0], [-6.0, 40.0], [-12.0, 38.0], [-18.0, 40.0], [-24.0, 42.0], [-30.0, 30.0]],
+        "西太平洋路线": [[60.0, 170.0], [50.0, 175.0], [38.0, 180.0], [25.0, -170.0], [12.0, -165.0], [0.0, -170.0], [-12.0, -175.0], [-22.0, 178.0], [-32.0, 172.0], [-42.0, 165.0]],
+        "美洲-太平洋路线": [[61.5, -150.0], [55.0, -135.0], [48.0, -125.0], [42.0, -124.0], [32.0, -117.0], [23.0, -110.0], [15.0, -100.0], [8.0, -85.0], [0.0, -80.0], [-8.0, -78.0], [-18.0, -72.0], [-28.0, -71.0], [-36.0, -73.0], [-45.0, -74.0], [-54.0, -70.0]],
+        "密西西比美洲路线": [[68.0, -110.0], [58.0, -105.0], [48.0, -100.0], [40.0, -96.0], [32.0, -92.0], [28.0, -88.0], [22.0, -85.0], [16.0, -86.0], [10.0, -80.0], [2.0, -75.0], [-8.0, -68.0], [-18.0, -64.0], [-28.0, -64.0], [-38.0, -68.0], [-48.0, -72.0]],
+        "美洲-大西洋路线": [[66.0, -65.0], [56.0, -62.0], [46.0, -64.0], [40.0, -70.0], [32.0, -78.0], [25.0, -80.0], [18.0, -76.0], [10.0, -65.0], [2.0, -52.0], [-6.0, -42.0], [-14.0, -38.0], [-22.0, -42.0], [-32.0, -48.0], [-38.0, -54.0], [-44.0, -60.0]],
+        "黑海-地中海路线": [[58.0, 18.0], [52.0, 22.0], [46.0, 28.0], [42.0, 32.0], [38.0, 28.0], [36.0, 22.0], [32.0, 16.0], [28.0, 10.0], [22.0, 5.0], [16.0, 2.0], [10.0, 0.0], [4.0, 2.0], [-2.0, 6.0], [-10.0, 12.0], [-16.0, 15.0], [-22.0, 14.0], [-28.0, 16.0]],
+        "东大西洋迁飞通道": [[78.2, 16.0], [72.0, -5.0], [64.1, -21.9], [56.0, -18.0], [48.0, -12.0], [40.0, -14.0], [32.0, -16.0], [24.0, -18.0], [16.0, -20.0], [8.0, -22.0], [0.0, -25.0], [-8.0, -24.0], [-16.0, -22.0], [-24.0, -18.0], [-32.0, -12.0], [-40.0, -5.0], [-48.0, 2.0], [-56.0, -8.0], [-64.0, -20.0], [-72.0, -22.0]]
+    };
+    const routeColors = ["#FF6B6B", "#4ECDC4", "#FFE66D", "#FF9F1C", "#C084FC", "#2E8B57", "#E63946", "#1E90FF", "#F4A261"];
+    
+    function latLngToVector3(lat, lng, radius = 1.02) {
+        const phi = (90 - lat) * Math.PI / 180;
+        const theta = lng * Math.PI / 180;
+        return new THREE.Vector3(radius * Math.sin(phi) * Math.cos(theta), radius * Math.cos(phi), radius * Math.sin(phi) * Math.sin(theta));
+    }
+    
+    function createSmoothLine(routeCoords, color) {
+        if (!routeCoords.length) return null;
+        const adjusted = [];
+        for (let i = 0; i < routeCoords.length; i++) {
+            let [lat, lng] = routeCoords[i];
+            if (i === 0) { adjusted.push([lat, lng]); continue; }
+            let prevLng = adjusted[i-1][1];
+            let delta = lng - prevLng;
+            if (delta > 180) delta -= 360;
+            if (delta < -180) delta += 360;
+            adjusted.push([lat, prevLng + delta]);
+        }
+        const interpolated = [];
+        for (let i = 0; i < adjusted.length - 1; i++) {
+            const p1 = adjusted[i], p2 = adjusted[i+1];
+            const steps = 35;
+            for (let s = 0; s <= steps; s++) {
+                const t = s / steps;
+                const lat = p1[0] * (1 - t) + p2[0] * t;
+                let lng = p1[1] * (1 - t) + p2[1] * t;
+                if (lng > 180) lng -= 360;
+                if (lng < -180) lng += 360;
+                interpolated.push([lat, lng]);
+            }
+        }
+        const points = interpolated.map(p => latLngToVector3(p[0], p[1], 1.02));
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const material = new THREE.LineBasicMaterial({ color: color });
+        return new THREE.Line(geometry, material);
+    }
+    
+    let allLines = [];
+    Object.keys(routes3d).forEach((name, idx) => {
+        const line = createSmoothLine(routes3d[name], routeColors[idx]);
+        if(line) {
+            scene.add(line);
+            allLines.push(line);
+        }
+    });
+    allLines.forEach(line => line.visible = false);
+    
+    function showOnlyRoute(routeName) {
+        allLines.forEach(line => line.visible = false);
+        const idx = Object.keys(routes3d).indexOf(routeName);
+        if (idx !== -1 && allLines[idx]) {
+            allLines[idx].visible = true;
+            const coords = routes3d[routeName];
+            if (coords && coords.length) {
+                const centerIdx = Math.floor(coords.length / 2);
+                const centerCoord = coords[centerIdx];
+                const targetPos = latLngToVector3(centerCoord[0], centerCoord[1], 2.2);
+                controls3d.target.copy(targetPos);
+                const startPos = camera.position.clone();
+                const endPos = targetPos.clone().multiplyScalar(1.7);
+                endPos.z += 0.6;
+                const duration = 500;
+                const startTime = performance.now();
+                function animateCamera(now) {
+                    const t = Math.min(1, (now - startTime) / duration);
+                    camera.position.lerpVectors(startPos, endPos, t);
+                    controls3d.target.lerpVectors(controls3d.target, targetPos, t);
+                    if (t < 1) requestAnimationFrame(animateCamera);
+                }
+                requestAnimationFrame(animateCamera);
+            }
+        }
+    }
+    
+    const btnContainer = document.getElementById('routes3dButtons');
+    Object.keys(routes3d).forEach(name => {
+        const btn = document.createElement('button');
+        btn.textContent = name;
+        btn.classList.add('route-3d-btn');
+        btn.onclick = () => {
+            showOnlyRoute(name);
+            document.querySelectorAll('.route-3d-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            controls3d.autoRotate = false;
+            setTimeout(() => controls3d.autoRotate = false, 400);
+        };
+        btnContainer.appendChild(btn);
+    });
+    setTimeout(() => showOnlyRoute("东大西洋迁飞通道"), 600);
+    
+    function animate3d() {
+        requestAnimationFrame(animate3d);
+        controls3d.update();
+        clouds.rotation.y += 0.0005;
+        renderer.render(scene, camera);
+    }
+    animate3d();
+    window.addEventListener('resize', () => {
+        const w = container.clientWidth, h = container.clientHeight;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+    });
+    
+    // ========== 故事地图 ==========
+    const map = L.map('nora-map').setView([78.2, 16.0], 5);
+    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri' });
+    const streetLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri' });
+    satelliteLayer.addTo(map);
+    L.control.layers({ "卫星影像": satelliteLayer, "街道地图": streetLayer }).addTo(map);
+    L.control.scale().addTo(map);
+    
+    // ---------- 测距工具（与之前完全一致的可用版本） ----------
+    let measureActive = false;
+    let measurePoints = [];
+    let measureMarkers = [];
+    let measureLine = null;
+    let measureTip = null;
+    let clearTimeoutId = null;
+    
+    function clearAllMeasure() {
+        if (clearTimeoutId) clearTimeout(clearTimeoutId);
+        measureMarkers.forEach(m => map.removeLayer(m));
+        if (measureLine) map.removeLayer(measureLine);
+        if (measureTip) map.removeLayer(measureTip);
+        measureMarkers = [];
+        measurePoints = [];
+        measureLine = null;
+        measureTip = null;
+        clearTimeoutId = null;
+    }
+    
+    function startNewMeasure() {
+        clearAllMeasure();
+        measurePoints = [];
+    }
+    
+    function onMapClickForMeasure(e) {
+        if (!measureActive) return;
+        if (measurePoints.length >= 2) return;
+        const latlng = e.latlng;
+        if (measurePoints.length === 1) {
+            measurePoints.push(latlng);
+            const marker2 = L.marker(latlng, {
+                icon: L.divIcon({ html: '<div style="background:#ffb347; width:10px; height:10px; border-radius:50%; border:2px solid white;"></div>', iconSize: [10,10] })
+            }).addTo(map);
+            measureMarkers.push(marker2);
+            const p1 = measurePoints[0];
+            const p2 = measurePoints[1];
+            const dist = p1.distanceTo(p2) / 1000;
+            measureLine = L.polyline([p1, p2], { color: '#ffffff', weight: 3, opacity: 0.9 }).addTo(map);
+            const midLat = (p1.lat + p2.lat) / 2;
+            const midLng = (p1.lng + p2.lng) / 2;
+            measureTip = L.marker([midLat, midLng], {
+                icon: L.divIcon({ html: `<div class="distance-tip">📏 ${dist.toFixed(1)} km</div>` })
+            }).addTo(map);
+            clearTimeoutId = setTimeout(() => {
+                clearAllMeasure();
+                measurePoints = [];
+            }, 3000);
+        } else {
+            startNewMeasure();
+            measurePoints.push(latlng);
+            const marker1 = L.marker(latlng, {
+                icon: L.divIcon({ html: '<div style="background:#ffb347; width:10px; height:10px; border-radius:50%; border:2px solid white;"></div>', iconSize: [10,10] })
+            }).addTo(map);
+            measureMarkers.push(marker1);
+        }
+    }
+    
+    function toggleMeasure() {
+        if (measureActive) {
+            measureActive = false;
+            map.off('click', onMapClickForMeasure);
+            clearAllMeasure();
+            measureBtn.classList.remove('active');
+        } else {
+            measureActive = true;
+            clearAllMeasure();
+            measurePoints = [];
+            map.on('click', onMapClickForMeasure);
+            measureBtn.classList.add('active');
+            const tip = L.popup().setLatLng(map.getCenter()).setContent('点击地图上的两个点，测量直线距离').openOn(map);
+            setTimeout(() => map.closePopup(tip), 2000);
+        }
+    }
+    
+    // 测距控件
+    const measureControl = L.control({ position: 'topright' });
+    measureControl.onAdd = function() {
+        const div = L.DomUtil.create('div', 'custom-control');
+        measureBtn = L.DomUtil.create('button', '', div);
+        measureBtn.innerHTML = '<i class="fas fa-ruler-combined"></i>';
+        measureBtn.title = '测距工具';
+        measureBtn.onclick = toggleMeasure;
+        return div;
+    };
+    let measureBtn;
+    measureControl.addTo(map);
+    
+    // ---------- 截图分享控件（样式完全一致） ----------
+    async function captureAndDownload() {
+        const mapArea = document.querySelector('.map-area');
+        if (!mapArea) {
+            alert('无法定位地图区域');
+            return;
+        }
+        // 显示一个短暂提示，避免用户重复点击
+        const originalTitle = screenshotBtn.title;
+        screenshotBtn.title = '截图中...';
+        screenshotBtn.disabled = true;
+        try {
+            // 使用 html2canvas 截图，提高清晰度并包含所有地图元素
+            const canvas = await html2canvas(mapArea, {
+                scale: 2,            // 高清输出
+                backgroundColor: '#1a2e2a',
+                logging: false,
+                useCORS: true,       // 跨域图片可能无法加载，但底图一般为允许的
+                allowTaint: false
+            });
+            // 创建下载链接
+            const link = document.createElement('a');
+            link.download = 'polar_tern_map.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        } catch (err) {
+            console.error('截图失败', err);
+            alert('截图失败，请重试或检查网络');
+        } finally {
+            screenshotBtn.title = originalTitle;
+            screenshotBtn.disabled = false;
+        }
+    }
+    
+    const screenshotControl = L.control({ position: 'topright' });
+    screenshotControl.onAdd = function() {
+        const div = L.DomUtil.create('div', 'custom-control');
+        screenshotBtn = L.DomUtil.create('button', '', div);
+        screenshotBtn.innerHTML = '<i class="fas fa-camera"></i>';
+        screenshotBtn.title = '截图分享';
+        screenshotBtn.onclick = captureAndDownload;
+        return div;
+    };
+    let screenshotBtn;
+    screenshotControl.addTo(map);
+    
+    // ---------- 以下原有故事地图逻辑（站点、抉择、仪表盘、燕鸥图标、南极动画等）完整保留 ----------
+    const stations = [
+        { name: "❄️ 斯瓦尔巴群岛", lat: 78.2, lng: 16.0, time: "6月-7月", desc: "FAU在这里出生，极昼下快速成长。", fact: "全球约50%的北极燕鸥在此繁殖", icon: "fa-egg", zoom: 7, mileage: 0, img: "https://plus.unsplash.com/premium_photo-1661891865327-3183020c93b1?w=600", longDesc: "斯瓦尔巴群岛位于北极圈内，苔原上密集的燕鸥巢穴，每对夫妇守护2-3枚卵，父母轮流孵卵、捕猎，雏鸟必须在短短三周内学会飞行，否则将无法跟上南迁的大部队。" },
+        { name: "🌊 冰岛海域", lat: 64.1, lng: -21.9, time: "8月上旬", desc: "冰岛周边寒暖流交汇，提供了北迁后第一次大规模进食机会。", fact: "单次迁徙前增重可达 40%", icon: "fa-fish", zoom: 6, mileage: 1200, img: "https://plus.unsplash.com/premium_photo-1673002094359-6e2de18bf37b?w=600", longDesc: "冰岛周边寒暖流交汇，带来大量鲱鱼和磷虾，是燕鸥重要的能量补给站。",
+          choice: {
+            title: "🔄 前方出现密集鱼群，但天空有猛禽盘旋，你会：",
+            options: [
+              { text: "🐟 冒险快速捕食", staminaDelta: +5, outcome: "成功补充能量，但惊险躲过贼鸥袭击。", narrativeEffect: "FAU 体力充沛，继续前进。" },
+              { text: "⏩ 不停留继续南飞", staminaDelta: -5, outcome: "失去了一次补给机会，感到有些疲惫。", narrativeEffect: "FAU 决定不冒险，但后续体力稍显不足。" }
+            ]
+          }
+        },
+        { name: "🍃 爱尔兰西南海域", lat: 51.5, lng: -12.0, time: "8月中旬", desc: "利用上升流区短暂停歇，恢复体力。", fact: "日行300公里", icon: "fa-water", zoom: 6, mileage: 2200, img: "https://plus.unsplash.com/premium_photo-1734415314046-d9f5956d5604?w=600", longDesc: "爱尔兰海丰富的饵料，燕鸥常在这里盘旋捕食，补充长途飞行消耗。" },
+        { name: "🌞 比斯开湾", lat: 45.5, lng: -5.0, time: "8月底", desc: "穿越比斯开湾，直面北大西洋风暴。", fact: "集群飞行以抵御天敌与风暴", icon: "fa-cloud-sun", zoom: 6, mileage: 3300, img: "https://plus.unsplash.com/premium_photo-1664286884907-e9167045d0bb?w=600", longDesc: "比斯开湾以狂风巨浪闻名。燕鸥无法长时间在海面休息，只能迎着侧风持续飞行。群体飞行不仅能节省体力，也能降低被猛禽袭击的风险。" },
+        { name: "🌴 西非沿岸(塞内加尔)", lat: 14.5, lng: -17.5, time: "9月-10月", desc: "赤道前最后的丰盛补给站。", fact: "停留5-8天", icon: "fa-palm-tree", zoom: 6, mileage: 5200, img: "https://plus.unsplash.com/premium_photo-1661871178548-e35aece53d53?w=600", longDesc: "塞内加尔沿海的上升流带来密集鱼群，是燕鸥跨越赤道的“最后一顿正餐”。此后，它们将面对赤道无风带的高温与食物匮乏。",
+          choice: {
+            title: "🐟 你发现一片极其丰富的渔场，但需要停留更久，你会：",
+            options: [
+              { text: "🍽️ 多停留2天，彻底吃饱", staminaDelta: +15, outcome: "储备了充足脂肪，信心满满。", narrativeEffect: "FAU 体重增加，穿越赤道时更有底气。" },
+              { text: "⚡ 迅速通过，节省时间", staminaDelta: -5, outcome: "没有充分补给的飞越非常艰难。", narrativeEffect: "FAU 轻装上路，但赤道段几乎耗尽体力。" }
+            ]
+          }
+        },
+        { name: "🔥 几内亚湾赤道区", lat: 0.0, lng: -8.0, time: "10月", desc: "穿越赤道无风带，高温与饥饿的双重考验。", fact: "连续飞行1200公里", icon: "fa-temperature-high", zoom: 5.5, mileage: 8200, img: "https://images.unsplash.com/photo-1559233642-4108fd12db5e?w=600", longDesc: "赤道附近缺乏稳定上升气流，燕鸥必须依靠持续振翅前进。这里几乎没有食物，它们依靠此前积累的脂肪，一口气飞行上千公里。",
+          choice: {
+            title: "🌞 前方是赤道无风带，你会：",
+            options: [
+              { text: "🌞 白天滑翔节省体力", staminaDelta: +5, outcome: "你选择节省体力，三天后遇到一阵上升气流，顺利抵达纳米比亚。", narrativeEffect: "借助热气流，FAU 平稳穿越赤道区。" },
+              { text: "🌙 夜间赶路避开高温", staminaDelta: -3, outcome: "夜间飞行虽然凉爽，但迷失了一点方向，多飞了200公里，幸好吃到了飞鱼。", narrativeEffect: "夜间赶路消耗了更多精力，但遇到飞鱼群稍微补充了体力。" }
+            ]
+          }
+        },
+        { name: "🌊 纳米比亚-南非海域", lat: -28.0, lng: 15.0, time: "11月初", desc: "本格拉寒流带来海洋盛宴。", fact: "常与海豚、鲸鱼协同捕食", icon: "fa-dolphin", zoom: 6, mileage: 11200, img: "https://images.unsplash.com/photo-1648107482708-2d9d61af12c0?w=600", longDesc: "本格拉寒流将深海营养带到表层，引发沙丁鱼风暴。燕鸥、海豚、鲸鱼甚至海鸟会同时出现，共同围猎这片富饶海域。" },
+        { name: "⛰️ 南非好望角", lat: -34.5, lng: 18.0, time: "11月中旬", desc: "绕过非洲最南端，进入南大洋。", fact: "利用西风带长距离滑翔", icon: "fa-mountain", zoom: 6, mileage: 14200, img: "https://plus.unsplash.com/premium_photo-1669750791963-ec6f3a565fb9?w=600", longDesc: "好望角是大西洋与印度洋的交汇点，常年西风肆虐。燕鸥不再依赖频繁振翅，而是借助强劲西风滑翔，这是它们最省力的一段航程。",
+          choice: {
+            title: "🌬️ 强劲西风带来两种策略：",
+            options: [
+              { text: "🪁 借助顺风高速滑翔", staminaDelta: +10, outcome: "节省大量体力，飞得又快又轻松。", narrativeEffect: "FAU 借着西风之翼，快速接近南极。" },
+              { text: "🧭 偏离航线寻找更多食物", staminaDelta: -8, outcome: "虽然吃饱了，但多飞了300公里。", narrativeEffect: "绕路让 FAU 疲惫，但收获了满满的鱼。" }
+            ]
+          }
+        },
+        { name: "❄️ 斯科舍海", lat: -55.0, lng: -35.0, time: "12月上旬", desc: "逼近南极圈，浮冰开始浮现。", fact: "羽毛防水，适应极寒环境", icon: "fa-icicles", zoom: 6, mileage: 17200, img: "https://plus.unsplash.com/premium_photo-1664012343376-fa9647b9d897?w=600", longDesc: "斯科舍海布满冰山与碎冰，气温骤降。北极燕鸥的羽毛致密且防水，即使在接近零度的海水中短时间停留，也不会失去体温。" },
+        { name: "🧊 威德尔海(南极越冬)", lat: -72.0, lng: -22.0, time: "12月-2月", desc: "抵达终点，在南极的极昼中度过南半球夏天。", fact: "越冬地集群超百万只", icon: "fa-snowflake", zoom: 7, mileage: 19200, img: "https://plus.unsplash.com/premium_photo-1664303875699-8e95cd12601a?w=600", longDesc: "威德尔海冰缘聚集大量磷虾，燕鸥与企鹅、海豹共享南极的短暂夏天。" },
+        { name: "🔄 完整迁徙回环", lat: 0, lng: -30, time: "全年", desc: "从北极到南极，再回到原点。", fact: "一生飞行距离可绕地球三圈", icon: "fa-infinity", zoom: 2.5, mileage: 80000, img: "https://plus.unsplash.com/premium_photo-1666382677674-0e3ea67dc196?w=600", longDesc: "从斯瓦尔巴到威德尔海，再原路返回，年复一年，永不停歇。这是地球上最伟大的迁徙。" }
+    ];
+    
+    const fullPoints = [
+        [78.2,16.0],[76.0,8.0],[70.0,-5.0],[64.1,-21.9],[58.0,-15.0],[51.5,-12.0],[47.0,-8.0],[45.5,-5.0],[40.0,-10.0],[30.0,-15.0],[20.0,-18.0],[14.5,-17.5],[7.0,-12.0],[0.0,-8.0],[-7.0,-5.0],[-15.0,0.0],[-22.0,7.0],[-28.0,15.0],[-34.5,18.0],[-42.0,0.0],[-50.0,-15.0],[-55.0,-35.0],[-64.0,-40.0],[-72.0,-22.0]
+    ];
+    const stationPathIndex = stations.map((_, idx) => Math.floor(idx * (fullPoints.length - 1) / (stations.length - 1)));
+    
+    function getRouteSegment(idx) {
+        if (idx === stations.length-1) return fullPoints;
+        const step = Math.floor((idx+1) * fullPoints.length / (stations.length-1));
+        return fullPoints.slice(0, Math.max(2, step));
+    }
+    
+    let markersGroup = L.layerGroup().addTo(map);
+    stations.forEach(s => {
+        const popHtml = `<div><strong>${s.name}</strong><br/>📅 ${s.time}<p>${s.desc}</p><div>🔬 ${s.fact}</div></div>`;
+        const iconHtml = `<i class="fas ${s.icon}" style="color:#d97706; font-size:22px;"></i>`;
+        L.marker([s.lat, s.lng], { icon: L.divIcon({ html: iconHtml, iconSize: [24,24] }) }).bindPopup(popHtml, { className: 'custom-popup' }).addTo(markersGroup);
+    });
+    
+    let currentPolyline = null;
+    function updateRoute(idx) {
+        if(currentPolyline) map.removeLayer(currentPolyline);
+        const coords = getRouteSegment(idx);
+        if(coords.length) currentPolyline = L.polyline(coords, { color: '#ff9f4a', weight: 4, opacity: 0.9, dashArray: '6,8' }).addTo(map);
+    }
+    
+    function drawSpeedometer(canvasId, value, maxValue, label, colorType) {
+        const canvas = document.getElementById(canvasId);
+        if(!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const size = 100;
+        canvas.width = canvas.height = size;
+        const centerX = size/2, centerY = size/2+5;
+        const radius = 42;
+        const angleStart = Math.PI*0.75, angleEnd = Math.PI*2.25;
+        const percent = Math.min(1, value / maxValue);
+        const angle = angleStart + percent * (angleEnd - angleStart);
+        ctx.clearRect(0,0,size,size);
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, angleStart, angleEnd);
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 12;
+        ctx.stroke();
+        const grad = ctx.createLinearGradient(20,20,size-20,size-20);
+        if(colorType === 'stamina') { grad.addColorStop(0,'#f97316'); grad.addColorStop(1,'#eab308'); }
+        else { grad.addColorStop(0,'#3b82f6'); grad.addColorStop(1,'#06b6d4'); }
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, angleStart, angle);
+        ctx.strokeStyle = grad;
+        ctx.stroke();
+        const pointerLen = radius-10;
+        const px = centerX + Math.cos(angle)*pointerLen;
+        const py = centerY + Math.sin(angle)*pointerLen;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(px, py);
+        ctx.strokeStyle = '#ffd966';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 5, 0, 2*Math.PI);
+        ctx.fillStyle = '#ffb347';
+        ctx.fill();
+        ctx.font = 'bold 18px "Quicksand"';
+        ctx.fillStyle = '#f0f0f0';
+        ctx.fillText(Math.round(percent*100), centerX-15, centerY+8);
+        ctx.font = '10px "Quicksand"';
+        ctx.fillStyle = '#a0a0a0';
+        ctx.fillText(label, centerX-12, centerY+25);
+    }
+    
+    let globalStamina = 100;
+    let choiceMadeAt = {};
+    
+    function updateDashboard(idx) {
+        const station = stations[idx];
+        const total = (idx === stations.length-1) ? 80000 : 19200;
+        const percent = (station.mileage / total) * 100;
+        const distanceSpan = document.getElementById('dashDistanceValue');
+        if(distanceSpan) distanceSpan.innerText = `${station.mileage.toLocaleString()} km / ${total.toLocaleString()} km`;
+        drawSpeedometer('distanceGauge', percent, 100, '%', 'distance');
+        drawSpeedometer('staminaGauge', globalStamina, 100, '%', 'stamina');
+        const windConditions = ["🌬️ 微风", "🌊 正常", "🍃 正常", "🌀 逆风", "🌊 正常", "😓 无风", "🌊 正常", "🌬️ 顺风", "❄️ 强风", "🌬️ 极地微风", "🌍 永恒之风"];
+        const windSpan = document.getElementById('dashWindText');
+        if(windSpan) windSpan.innerHTML = windConditions[idx % windConditions.length];
+    }
+    
+    function updateRightPanel(idx) {
+        const s = stations[idx];
+        const html = `
+            <div class="station-card">
+                <h3><i class="fas ${s.icon}"></i> ${s.name}</h3>
+                <div style="font-size:0.8rem; color:#a5673f;">📅 ${s.time}</div>
+                <img class="station-img" src="${s.img}" alt="${s.name}" loading="lazy">
+                <p style="margin: 10px 0 6px;"><strong>📖 详细故事</strong><br>${s.longDesc}</p>
+                <div class="dashboard">
+                    <div class="gauge-row">
+                        <div class="gauge"><canvas id="distanceGauge" width="100" height="100"></canvas><div class="gauge-label">已飞距离</div></div>
+                        <div class="gauge"><canvas id="staminaGauge" width="100" height="100"></canvas><div class="gauge-label">体力值</div></div>
+                    </div>
+                    <div class="distance-value" id="dashDistanceValue">0 km</div>
+                    <div class="wind-card"><i class="fas fa-wind"></i><span id="dashWindText">--</span></div>
+                </div>
+                <button class="btn" id="endingFromPanelBtn" style="align-self: flex-end; margin-top: 1rem;">尾声·保护</button>
+            </div>
+        `;
+        document.getElementById('detailContent').innerHTML = html;
+        document.getElementById('stationNameDisplay').innerHTML = s.name;
+        document.getElementById('timelineSlider').value = idx;
+        document.getElementById('endingFromPanelBtn').onclick = () => scrollToScreen(endingScreen);
+        updateDashboard(idx);
+        showChoiceIfNeeded(idx);
+    }
+    
+    function showChoiceIfNeeded(idx) {
+        const station = stations[idx];
+        const container = document.getElementById('equatorInteractContainer');
+        if(!container) return;
+        if(station.choice && !choiceMadeAt[station.name]) {
+            let optionsHtml = '';
+            station.choice.options.forEach((opt, optIdx) => {
+                optionsHtml += `<button class="btn-sm" data-choice="${optIdx}">${opt.text}</button>`;
+            });
+            container.innerHTML = `
+                <div class="equator-card">
+                    <div class="title"><i class="fas fa-question-circle"></i> ${station.choice.title}</div>
+                    <div class="choice-buttons" id="choiceButtons">
+                        ${optionsHtml}
+                    </div>
+                    <div id="choiceResult"></div>
+                </div>
+            `;
+            const btns = container.querySelectorAll('.btn-sm');
+            btns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const optIdx = parseInt(btn.dataset.choice);
+                    const chosen = station.choice.options[optIdx];
+                    globalStamina = Math.min(100, Math.max(0, globalStamina + chosen.staminaDelta));
+                    choiceMadeAt[station.name] = true;
+                    const resultDiv = document.getElementById('choiceResult');
+                    resultDiv.innerHTML = `<div class="result">✨ ${chosen.outcome}</div>`;
+                    const btnsDiv = document.getElementById('choiceButtons');
+                    if(btnsDiv) btnsDiv.style.display = 'none';
+                    updateDashboard(idx);
+                    const descPara = document.querySelector('#detailContent .station-card p');
+                    if(descPara && chosen.narrativeEffect) {
+                        descPara.innerHTML += `<br><em>【抉择影响】${chosen.narrativeEffect}</em>`;
+                    }
+                    setTimeout(() => { container.innerHTML = ''; }, 4000);
+                });
+            });
+        } else {
+            if(!station.choice || choiceMadeAt[station.name]) {
+                container.innerHTML = '';
+            }
+        }
+    }
+    
+    const ternIcon = L.divIcon({
+        html: '<div style="font-size:32px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transform: rotate(-10deg);">🐦</div>',
+        iconSize: [32,32],
+        className: 'tern-marker'
+    });
+    let ternMarker = L.marker(fullPoints[0], { icon: ternIcon }).addTo(map);
+    
+    function moveTernToStation(idx) {
+        const targetPoint = fullPoints[stationPathIndex[idx]];
+        if(targetPoint) ternMarker.setLatLng(targetPoint);
+    }
+    
+    function triggerAntarcticCelebration() {
+        const mapArea = document.querySelector('.map-area');
+        if (!mapArea) return;
+        const aurora = document.createElement('div'); aurora.className = 'aurora-bg'; mapArea.appendChild(aurora);
+        for (let i = 0; i < 30; i++) {
+            const snow = document.createElement('div'); snow.className = 'snowflake'; snow.innerHTML = '❄️';
+            snow.style.left = Math.random() * 100 + '%'; snow.style.animationDelay = Math.random() * 1.5 + 's';
+            snow.style.fontSize = (10 + Math.random() * 12) + 'px'; mapArea.appendChild(snow);
+            setTimeout(() => snow.remove(), 3500);
+        }
+        const mountain = document.createElement('div'); mountain.className = 'mountain-rise'; mountain.innerHTML = '🏔️❄️✨'; mapArea.appendChild(mountain);
+        const text = document.createElement('div'); text.className = 'arrival-text'; text.innerHTML = '🎉 抵达南极！ 🎉'; mapArea.appendChild(text);
+        setTimeout(() => { if(aurora) aurora.remove(); if(mountain) mountain.remove(); if(text) text.remove(); }, 3800);
+    }
+    
+    let currentStation = 0;
+    window.flyToStation = function(idx) {
+        if(idx<0 || idx>=stations.length) return;
+        currentStation = idx;
+        const s = stations[idx];
+        map.flyTo([s.lat, s.lng], s.zoom, { duration: 1.2 });
+        updateRoute(idx);
+        updateRightPanel(idx);
+        moveTernToStation(idx);
+        if (idx === 9) triggerAntarcticCelebration();
+        setTimeout(() => {
+            markersGroup.eachLayer(layer => {
+                if(Math.abs(layer.getLatLng().lat - s.lat) < 1.2) layer.openPopup();
+            });
+        }, 500);
+    };
+    
+    function updateEndingMessage() {
+        const endingDiv = document.getElementById('endingMessage');
+        if(endingDiv) {
+            if(globalStamina >= 70) endingDiv.innerHTML = "✨ FAU 充满活力地抵达南极，未来还能继续迁徙十年！✨<br>保护湿地、减少光污染，让伟大迁徙永续。";
+            else if(globalStamina >= 40) endingDiv.innerHTML = "🌿 FAU 勉强到达南极，科学家呼吁建立更多海洋保护区。🌿<br>你的选择影响了它的命运，现实中的燕鸥更需要我们的帮助。";
+            else endingDiv.innerHTML = "⚠️ FAU 筋疲力尽，它的故事警示着气候变化对候鸟的威胁。⚠️<br>每一个微小的保护行动，都可能改变一次迁徙的结局。";
+        }
+    }
+    const observer = new IntersectionObserver((entries) => {
+        if(entries[0].isIntersecting) updateEndingMessage();
+    }, { threshold: 0.5 });
+    observer.observe(endingScreen);
+    
+    const slider = document.getElementById('timelineSlider');
+    slider.setAttribute('max', stations.length-1);
+    slider.addEventListener('input', (e) => window.flyToStation(parseInt(e.target.value)));
+    document.getElementById('prevStationBtn').onclick = () => { if(currentStation>0) window.flyToStation(currentStation-1); };
+    document.getElementById('nextStationBtn').onclick = () => { if(currentStation<stations.length-1) window.flyToStation(currentStation+1); };
+    const shortRow = document.getElementById('stationsRowShort');
+    stations.forEach((_, i) => { let span = document.createElement('span'); span.innerText = i+1; shortRow.appendChild(span); });
+    
+    const autoBtn = document.createElement('button');
+    autoBtn.className = 'nav-btn-sm';
+    autoBtn.innerHTML = '<i class="fas fa-play"></i> 漫游';
+    autoBtn.style.marginLeft = '10px';
+    document.querySelector('.nav-buttons').appendChild(autoBtn);
+    let autoInterval = null;
+    autoBtn.onclick = () => {
+        if(autoInterval) {
+            clearInterval(autoInterval);
+            autoInterval = null;
+            autoBtn.innerHTML = '<i class="fas fa-play"></i> 漫游';
+            return;
+        }
+        autoBtn.innerHTML = '<i class="fas fa-stop"></i> 暂停';
+        autoInterval = setInterval(() => {
+            if(currentStation < stations.length-1) window.flyToStation(currentStation+1);
+            else {
+                clearInterval(autoInterval);
+                autoInterval = null;
+                autoBtn.innerHTML = '<i class="fas fa-play"></i> 漫游';
+            }
+        }, 4000);
+    };
+    
+    window.mapInstance = map;
+    window.flyToStation(0);
+    window.addEventListener('resize', () => map.invalidateSize());
+</script>
+</body>
+</html>
