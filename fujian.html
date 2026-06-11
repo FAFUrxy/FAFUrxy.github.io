@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>福建省土壤专题地图 | 智慧农业·动态图鉴</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.2.4/ol.css">
+    <script src="https://cdn.jsdelivr.net/npm/ol@v9.2.4/dist/ol.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- 引入优雅字体 Inter & 思源黑优化 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            background: #eef2f7;
+            /* 细腻的底纹营造高级感 */
+            background-image: radial-gradient(circle at 10% 20%, rgba(44, 110, 158, 0.02) 0%, rgba(0, 0, 0, 0) 80%);
+        }
+
+        /* ========= 全新玻璃态导航栏 ========= */
+        .navbar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 70px;
+            background: rgba(255, 255, 255, 0.86);
+            backdrop-filter: blur(18px);
+            box-shadow: 0 8px 28px -6px rgba(0, 0, 0, 0.12), 0 1px 0 0 rgba(255, 255, 255, 0.6) inset;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            z-index: 1001;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.7);
+            transition: all 0.2s ease;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo-icon {
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(145deg, #1f6e8c, #0e4b64);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.4rem;
+            box-shadow: 0 10px 15px -8px rgba(0, 32, 64, 0.25);
+            transition: transform 0.2s;
+        }
+        .logo-icon:hover { transform: scale(1.02); }
+
+        .title-text h1 {
+            font-size: 1.42rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #1f4662, #2c6e9e);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            letter-spacing: -0.2px;
+        }
+
+        .title-text p {
+            font-size: 0.7rem;
+            color: #5b6f82;
+            margin-top: 2px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 14px;
+            align-items: center;
+        }
+
+        /* 统一按钮风格 */
+        .screenshot-btn, .basemap-selector, .reset-btn {
+            background: rgba(30, 70, 99, 0.9);
+            backdrop-filter: blur(4px);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 48px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.25s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            letter-spacing: 0.3px;
+        }
+
+        .basemap-selector {
+            background: rgba(44, 110, 158, 0.92);
+        }
+
+        .reset-btn {
+            background: rgba(80, 95, 110, 0.85);
+        }
+
+        .screenshot-btn:hover, .basemap-selector:hover, .reset-btn:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.02);
+            box-shadow: 0 12px 18px -8px rgba(0, 0, 0, 0.2);
+            background: #1f5a7a;
+        }
+
+        /* ========= 右侧控制面板 - 优雅磨砂质感 ========= */
+        .control-panel {
+            position: absolute;
+            top: 90px;
+            right: 24px;
+            width: 290px;
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(20px);
+            border-radius: 28px;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.2), 0 1px 0px 0 rgba(255,255,255,0.8) inset;
+            padding: 20px 18px;
+            z-index: 1000;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            transition: all 0.3s;
+            overflow-y: auto;
+            max-height: calc(100% - 110px);
+        }
+
+        /* 自定义滚动条 */
+        .control-panel::-webkit-scrollbar {
+            width: 5px;
+        }
+        .control-panel::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.05);
+            border-radius: 10px;
+        }
+        .control-panel::-webkit-scrollbar-thumb {
+            background: #2c6e9e;
+            border-radius: 10px;
+        }
+
+        .control-panel h3 {
+            font-size: 1.08rem;
+            font-weight: 600;
+            margin-bottom: 18px;
+            color: #17455f;
+            border-left: 4px solid #2c6e9e;
+            padding-left: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .map-btn {
+            background: rgba(248, 250, 252, 0.8);
+            border: 1px solid #e9edf2;
+            padding: 10px 16px;
+            border-radius: 60px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s;
+            color: #1f3b4c;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+
+        .map-btn i {
+            width: 26px;
+            font-size: 1.1rem;
+            color: #2c6e9e;
+            transition: 0.2s;
+        }
+
+        .map-btn:hover {
+            background: white;
+            transform: translateX(5px);
+            border-color: #b9d4ef;
+            box-shadow: 0 8px 15px -10px rgba(44,110,158,0.3);
+        }
+
+        .map-btn.active {
+            background: linear-gradient(105deg, #26648b, #1f7caa);
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 10px 18px -8px rgba(30, 100, 140, 0.5);
+        }
+
+        .map-btn.active i {
+            color: white;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        /* 图例卡片全新设计 */
+        .legend {
+            margin-top: 12px;
+            border-top: 1px solid rgba(100, 120, 140, 0.2);
+            padding-top: 16px;
+            background: rgba(255,255,245,0.5);
+            border-radius: 20px;
+            padding: 16px 12px;
+            transition: all 0.2s;
+        }
+
+        .legend h4 {
+            font-size: 0.88rem;
+            font-weight: 700;
+            margin-bottom: 14px;
+            color: #17455f;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: -0.2px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+            font-size: 0.75rem;
+            transition: all 0.1s;
+        }
+
+        .legend-color {
+            width: 28px;
+            height: 16px;
+            border-radius: 20px;
+            flex-shrink: 0;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .legend-label {
+            color: #2c4556;
+            font-weight: 500;
+            font-size: 0.75rem;
+        }
+
+        .legend-note {
+            font-size: 0.68rem;
+            color: #6f8ea3;
+            margin-top: 12px;
+            font-style: normal;
+            background: rgba(180, 210, 225, 0.3);
+            padding: 6px 10px;
+            border-radius: 16px;
+            display: inline-block;
+            width: 100%;
+        }
+
+        /* 地图容器高级质感 */
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #d9e2eb;
+            box-shadow: 0 0 0 0 rgba(0,0,0,0);
+            transition: all 0.2s;
+        }
+
+        /* 状态栏toast美化 */
+        .status-toast {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            background: rgba(10, 25, 35, 0.8);
+            backdrop-filter: blur(12px);
+            color: #f0f9ff;
+            font-size: 0.73rem;
+            padding: 8px 18px;
+            border-radius: 48px;
+            font-family: 'Inter', monospace;
+            z-index: 1000;
+            pointer-events: none;
+            letter-spacing: 0.3px;
+            font-weight: 450;
+            border: 1px solid rgba(255,255,240,0.2);
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+        }
+
+        /* 优化ol自带控件 (zoom & scale) */
+        .ol-zoom {
+            top: 90px;
+            left: 24px;
+            background: transparent;
+        }
+        .ol-zoom button {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(8px);
+            border-radius: 40px;
+            margin: 6px 0;
+            width: 38px;
+            height: 38px;
+            font-weight: 600;
+            font-size: 1.2rem;
+            border: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            color: #1e4663;
+            transition: 0.2s;
+        }
+        .ol-zoom button:hover {
+            background: white;
+            transform: scale(1.02);
+            color: #0f5b88;
+        }
+        .ol-scale-line {
+            bottom: 24px;
+            left: 24px;
+            background: transparent !important;
+        }
+        .ol-scale-line-inner {
+            border: 1px solid rgba(0, 0, 0, 0.3);
+            border-top: none;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(4px);
+            color: #1f3b4c;
+            font-weight: 500;
+            padding: 3px 8px;
+            border-radius: 0 0 12px 12px;
+            font-size: 11px;
+            font-family: monospace;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+
+        /* 底图下拉菜单高级感 */
+        #basemapMenu {
+            position: absolute;
+            top: 80px;
+            right: 240px;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            box-shadow: 0 20px 32px -12px rgba(0, 0, 0, 0.25);
+            z-index: 1002;
+            display: none;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,240,0.8);
+            animation: fadeSlide 0.2s ease;
+        }
+        @keyframes fadeSlide {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .basemap-option {
+            padding: 12px 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #1e3a4d;
+            transition: all 0.2s;
+            border-bottom: 1px solid #eef2f8;
+        }
+        .basemap-option:last-child {
+            border-bottom: none;
+        }
+        .basemap-option i {
+            width: 24px;
+            color: #2c6e9e;
+        }
+        .basemap-option:hover {
+            background: #eef4fc;
+            padding-left: 28px;
+            color: #0f5e84;
+        }
+
+        /* 响应式调优 */
+        @media (max-width: 780px) {
+            .navbar { padding: 0 16px; height: 62px; }
+            .logo-icon { width: 34px; height: 34px; font-size: 1.1rem; }
+            .title-text h1 { font-size: 1.1rem; }
+            .toolbar { gap: 8px; }
+            .screenshot-btn, .basemap-selector, .reset-btn { padding: 6px 12px; font-size: 0.7rem; gap: 4px; }
+            .control-panel { width: 260px; top: 78px; right: 12px; padding: 14px; max-height: calc(100% - 90px); }
+            .map-btn { padding: 6px 12px; font-size: 0.75rem; }
+            .ol-zoom { top: 78px; left: 12px; }
+            .ol-zoom button { width: 32px; height: 32px; }
+            #basemapMenu { right: 160px; top: 70px; }
+            .status-toast { bottom: 16px; right: 16px; font-size: 0.65rem; }
+        }
+
+        /* 截图时隐藏toast动画不抖动，保持原有逻辑，无样式冲突 */
+        .smooth-transition {
+            transition: all 0.2s;
+        }
+
+        /* 增强按钮涟漪感 */
+        .map-btn, .screenshot-btn, .basemap-selector, .reset-btn {
+            cursor: pointer;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="logo-area">
+            <div class="logo-icon"><i class="fas fa-leaf"></i></div>
+            <div class="title-text">
+                <h1>福建省土壤专题地图</h1>
+                <p>智慧农业 · 生态图鉴</p>
+            </div>
+        </div>
+        <div class="toolbar">
+            <div class="basemap-selector" id="basemapBtn">
+                <i class="fas fa-map"></i> 底图切换
+                <i class="fas fa-chevron-down" style="font-size: 0.7rem;"></i>
+            </div>
+            <button class="reset-btn" id="resetViewBtn"><i class="fas fa-home"></i> 复位视图</button>
+            <button class="screenshot-btn" id="screenshotBtn"><i class="fas fa-camera"></i> 保存截图</button>
+        </div>
+    </div>
+
+    <!-- 底图切换下拉菜单（结构未变） -->
+    <div id="basemapMenu" style="position: absolute; top: 74px; right: 200px; background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1002; display: none; overflow: hidden;">
+        <div class="basemap-option" data-type="clean" style="padding: 10px 20px; cursor: pointer; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e9ecef;">
+            <i class="fas fa-draw-polygon"></i> 简洁无文字
+        </div>
+        <div class="basemap-option" data-type="gaode" style="padding: 10px 20px; cursor: pointer; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e9ecef;">
+            <i class="fas fa-location-dot"></i> 高德地图（中文）
+        </div>
+        <div class="basemap-option" data-type="satellite" style="padding: 10px 20px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-satellite"></i> 卫星图
+        </div>
+    </div>
+
+    <div class="control-panel">
+        <h3><i class="fas fa-layer-group"></i> 专题图层组</h3>
+        <div class="btn-group">
+            <button id="btnGroup1" class="map-btn active"><i class="fas fa-seedling"></i> 有机质 + 县区</button>
+            <button id="btnGroup2" class="map-btn"><i class="fas fa-mountain"></i> 土属 + 县区</button>
+            <button id="btnGroup3" class="map-btn"><i class="fas fa-cloud-rain"></i> 降水量 + 县区</button>
+        </div>
+        <div class="legend" id="legendContainer"></div>
+    </div>
+    <div id="map"></div>
+    <div class="status-toast" id="statusMsg">🌍 当前底图：简洁无文字 | 有机质专题</div>
+
+    <script>
+        // ========== 配置 (保持完全不变) ==========
+        const GEOSERVER_URL = 'http://localhost:8080/geoserver';
+        const WORKSPACE = 'rxy';
+        const LAYER_GROUPS = {
+            group1: '0610_group_01',
+            group2: '0610_group_02',
+            group3: '0610_group_03'
+        };
+        const SMALL_AREA = [116.54892742166622, 24.651258921410818, 116.66729723132362, 24.818102521367972];
+        const FUJIAN_EXTENT = [115.8133048366213, 23.487938270489902, 120.8960398331418, 28.33143493471903];
+        // ==========================
+
+        // 图例数据（基于SLD）
+        const legends = {
+            organic: {
+                title: '有机质分级 (g/kg)',
+                items: [
+                    { color: '#018571', label: '28.89 - 29.61' },
+                    { color: '#56b5a6', label: '29.61 - 30.77' },
+                    { color: '#a2d9d0', label: '30.77 - 31.76' },
+                    { color: '#e7f0ef', label: '31.76 - 32.62' },
+                    { color: '#e7d6ab', label: '32.62 - 33.32' },
+                    { color: '#cca25c', label: '33.32 - 34.06' },
+                    { color: '#a6611a', label: '34.06 - 35.34' }
+                ],
+                note: '数据来源：土壤采样点插值'
+            },
+            soiltype: {
+                title: '省土属分类',
+                items: [
+                    { color: '#d7191c', label: '潮砂田' },
+                    { color: '#e54f35', label: '耕作砂泥土' },
+                    { color: '#f3854e', label: '红泥砂土' },
+                    { color: '#fdb56a', label: '红泥土' },
+                    { color: '#fed38c', label: '黄泥砂田' },
+                    { color: '#fff0af', label: '黄泥田' },
+                    { color: '#eff8b0', label: '灰泥田' },
+                    { color: '#ceea91', label: '灰砂泥田' },
+                    { color: '#aedc72', label: '冷烂田' },
+                    { color: '#80c75f', label: '青泥田' },
+                    { color: '#4dae50', label: '乌泥田' }
+                ],
+                note: '福建省主要土属类型'
+            },
+            precip: {
+                title: '年降水量 (mm)',
+                items: [
+                    { color: '#f7fbff', label: '1608 - 1610' },
+                    { color: '#dce9f6', label: '1610 - 1620' },
+                    { color: '#bed8ec', label: '1620 - 1620' },
+                    { color: '#8fc2de', label: '1620 - 1620' },
+                    { color: '#5ba3d0', label: '1620 - 1620' },
+                    { color: '#3282be', label: '1620 - 1630' },
+                    { color: '#115ca5', label: '1630 - 1630' },
+                    { color: '#08306b', label: '1630 - 1630' }
+                ],
+                note: '多年平均降水量 (mm)'
+            }
+        };
+
+        function updateLegend(type) {
+            const container = document.getElementById('legendContainer');
+            const legend = legends[type];
+            if (!legend) return;
+            let html = `<h4><i class="fas fa-chart-simple"></i> ${legend.title}</h4>`;
+            legend.items.forEach(item => {
+                html += `<div class="legend-item"><div class="legend-color" style="background: ${item.color};"></div><span class="legend-label">${item.label}</span></div>`;
+            });
+            html += `<div class="legend-note"><i class="fas fa-info-circle"></i> ${legend.note}</div>`;
+            container.innerHTML = html;
+        }
+
+        function toMercatorExtent(lonLatExtent) {
+            const [minLon, minLat, maxLon, maxLat] = lonLatExtent;
+            const min = ol.proj.fromLonLat([minLon, minLat]);
+            const max = ol.proj.fromLonLat([maxLon, maxLat]);
+            return [min[0], min[1], max[0], max[1]];
+        }
+
+        function createImageWmsLayer(groupName) {
+            const fullLayerName = `${WORKSPACE}:${groupName}`;
+            return new ol.layer.Image({
+                source: new ol.source.ImageWMS({
+                    url: `${GEOSERVER_URL}/${WORKSPACE}/wms`,
+                    params: {
+                        'LAYERS': fullLayerName,
+                        'FORMAT': 'image/png',
+                        'TRANSPARENT': true,
+                        'VERSION': '1.1.1',
+                        'SRS': 'EPSG:3857'
+                    },
+                    serverType: 'geoserver',
+                    ratio: 1.5
+                }),
+                visible: false
+            });
+        }
+
+        const layer1 = createImageWmsLayer(LAYER_GROUPS.group1);
+        const layer2 = createImageWmsLayer(LAYER_GROUPS.group2);
+        const layer3 = createImageWmsLayer(LAYER_GROUPS.group3);
+
+        // 底图定义
+        const cleanLayer = new ol.layer.Tile({
+            source: new ol.source.XYZ({
+                url: 'https://{1-4}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
+                attributions: '&copy; OSM & CARTO',
+                crossOrigin: 'anonymous'
+            })
+        });
+        const gaodeLayer = new ol.layer.Tile({
+            source: new ol.source.XYZ({
+                url: 'https://webrd02.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
+                attributions: '&copy; 高德地图',
+                crossOrigin: 'anonymous'
+            })
+        });
+        const satelliteLayer = new ol.layer.Tile({
+            source: new ol.source.XYZ({
+                url: 'https://webst02.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
+                attributions: '&copy; 高德卫星影像',
+                crossOrigin: 'anonymous'
+            })
+        });
+
+        const basemaps = { clean: cleanLayer, gaode: gaodeLayer, satellite: satelliteLayer };
+        let currentBasemap = 'clean';
+
+        const map = new ol.Map({
+            target: 'map',
+            layers: [basemaps.clean, layer1, layer2, layer3],
+            view: new ol.View({
+                center: ol.proj.fromLonLat([117.5, 26.0]),
+                zoom: 7.5,
+                minZoom: 5,
+                maxZoom: 16
+            })
+        });
+        map.addControl(new ol.control.ScaleLine({ units: 'metric', bar: true }));
+
+        function switchBasemap(type) {
+            if (type === currentBasemap) return;
+            map.removeLayer(basemaps[currentBasemap]);
+            map.getLayers().insertAt(0, basemaps[type]);
+            currentBasemap = type;
+            let name = type === 'clean' ? '简洁无文字' : (type === 'gaode' ? '高德地图' : '卫星图');
+            document.getElementById('statusMsg').innerHTML = `🗺️ 当前底图：${name} | 当前专题：${getCurrentThemeName()}`;
+        }
+
+        function getCurrentThemeName() {
+            const activeBtn = document.querySelector('.map-btn.active');
+            if (activeBtn === document.getElementById('btnGroup1')) return '有机质';
+            if (activeBtn === document.getElementById('btnGroup2')) return '土属';
+            return '降水量';
+        }
+
+        function resetView() {
+            const fujianMerc = toMercatorExtent(FUJIAN_EXTENT);
+            map.getView().fit(fujianMerc, { padding: [40, 40, 40, 40], duration: 600 });
+            document.getElementById('statusMsg').innerHTML = `📍 已复位至福建省全境 | 底图: ${currentBasemap === 'clean' ? '简洁' : (currentBasemap === 'gaode' ? '高德' : '卫星')}`;
+        }
+
+        // 底图下拉菜单
+        const basemapBtn = document.getElementById('basemapBtn');
+        const basemapMenu = document.getElementById('basemapMenu');
+        basemapBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            basemapMenu.style.display = basemapMenu.style.display === 'block' ? 'none' : 'block';
+        });
+        document.querySelectorAll('.basemap-option').forEach(opt => {
+            opt.addEventListener('click', (e) => {
+                switchBasemap(opt.getAttribute('data-type'));
+                basemapMenu.style.display = 'none';
+            });
+        });
+        document.addEventListener('click', () => { basemapMenu.style.display = 'none'; });
+
+        document.getElementById('resetViewBtn').addEventListener('click', resetView);
+
+        function switchLayer(activeLayer, activeButton, name, legendType) {
+            layer1.setVisible(false);
+            layer2.setVisible(false);
+            layer3.setVisible(false);
+            activeLayer.setVisible(true);
+            document.querySelectorAll('.map-btn').forEach(btn => btn.classList.remove('active'));
+            activeButton.classList.add('active');
+            const extentMerc = toMercatorExtent(SMALL_AREA);
+            map.getView().fit(extentMerc, { padding: [80, 80, 80, 80], duration: 600 });
+            updateLegend(legendType);
+            document.getElementById('statusMsg').innerHTML = `📍 ${name} 专题图 | 底图: ${currentBasemap === 'clean' ? '简洁' : (currentBasemap === 'gaode' ? '高德' : '卫星')}`;
+        }
+
+        document.getElementById('btnGroup1').onclick = () => switchLayer(layer1, document.getElementById('btnGroup1'), '有机质+县区', 'organic');
+        document.getElementById('btnGroup2').onclick = () => switchLayer(layer2, document.getElementById('btnGroup2'), '土属+县区', 'soiltype');
+        document.getElementById('btnGroup3').onclick = () => switchLayer(layer3, document.getElementById('btnGroup3'), '降水量+县区', 'precip');
+
+        layer1.setVisible(true);
+        updateLegend('organic');
+        document.getElementById('statusMsg').innerHTML = '🌍 当前底图：简洁无文字 | 有机质专题';
+
+        // 截图功能（原封不动，仅提升UI的同时保留完全逻辑）
+        const screenshotBtn = document.getElementById('screenshotBtn');
+        screenshotBtn.addEventListener('click', () => {
+            const mapDiv = document.getElementById('map');
+            const statusDiv = document.getElementById('statusMsg');
+            const originalText = statusDiv.innerHTML;
+            statusDiv.style.display = 'none';
+            html2canvas(mapDiv, { scale: 2, backgroundColor: '#f0f2f5', useCORS: true })
+                .then(canvas => {
+                    statusDiv.style.display = '';
+                    const link = document.createElement('a');
+                    const timestamp = new Date().toISOString().slice(0,19).replace(/:/g, '-');
+                    link.download = `福建土壤专题图_${timestamp}.png`;
+                    link.href = canvas.toDataURL();
+                    link.click();
+                    statusDiv.innerHTML = '📸 截图已保存！';
+                    setTimeout(() => { statusDiv.innerHTML = originalText; }, 2000);
+                })
+                .catch(err => {
+                    statusDiv.style.display = '';
+                    console.error(err);
+                    statusDiv.innerHTML = '❌ 截图失败';
+                    setTimeout(() => { statusDiv.innerHTML = originalText; }, 3000);
+                });
+        });
+    </script>
+</body>
+</html>
